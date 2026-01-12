@@ -156,10 +156,27 @@ import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
-
+import { useState, useEffect } from "react";
 export default function HomePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+
+
+  const [isBackendReady, setIsBackendReady] = useState(false);
+
+  useEffect(() => {
+    let timer;
+    const checkBackend = async () => {
+      try {
+        const res = await fetch("http://example.com/"); 
+        if (res.status === 200) setIsBackendReady(true);
+      } catch (err) {
+        timer = setTimeout(checkBackend, 2000);
+      }
+    };
+    checkBackend();
+    return () => clearTimeout(timer);
+  }, []);
 
   if (status === "loading") {
     return (
@@ -176,6 +193,11 @@ export default function HomePage() {
       flex flex-col items-center justify-center px-6
       bg-slate-100 dark:bg-[#0b1220]
     ">
+      <div className={`absolute top-6 right-6 z-50 flex items-center gap-2 text-xs font-bold uppercase tracking-wider transition-all duration-500 
+        ${isBackendReady ? 'text-green-600 dark:text-green-400' : 'text-orange-500 dark:text-orange-400'}`}>
+        <div className={`w-2 h-2 rounded-full ${isBackendReady ? 'bg-green-600 dark:bg-green-400 shadow-[0_0_10px_#4ade80]' : 'bg-orange-500 dark:bg-orange-400 animate-pulse'}`} />
+        {isBackendReady ? 'System Online' : 'Waking Up Agents...'}
+      </div>
 
       {/* Background */}
       <div className="absolute inset-0 bg-gradient-to-br
