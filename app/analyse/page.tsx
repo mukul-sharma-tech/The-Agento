@@ -367,7 +367,6 @@
 // }
 
 
-
 "use client";
 import React, { useState, FormEvent, ChangeEvent } from 'react';
 import Transition from '@/components/transition';
@@ -542,7 +541,7 @@ export default function Home() {
   // Get competitors based on product type
   const competitors = getCompetitors(formData.product, selectedCurrency.symbol);
 
-  // Handle input change with proper event typing
+  // Handle input change with proper event typing - THIS WAS THE ERROR
   const handleInput = (
     e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
