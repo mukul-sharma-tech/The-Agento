@@ -1835,72 +1835,92 @@ export default function Home() {
       doc.setDrawColor(253, 230, 138);
       doc.setLineWidth(0.5);
       doc.rect(20, yPosition, 170, 25);
-      
-      doc.setFontSize(10);
-      doc.setTextColor(146, 64, 14); // amber-800
-      doc.setFont('helvetica', 'bold');
-      doc.text('💡 Competitive Insight', 25, yPosition + 8);
-      
-      doc.setFontSize(9);
-      doc.setTextColor(146, 64, 14);
-      doc.setFont('helvetica', 'normal');
-      const insightText = `Your product at ${selectedCurrency.symbol}${formData.price} competes directly with ${competitors[0].name} (${competitors[0].price}) and ${competitors[1].name} (${competitors[1].price}). Differentiate through unique features.`;
-      const splitInsight = doc.splitTextToSize(insightText, 160);
-      doc.text(splitInsight, 25, yPosition + 15);
-      
-      // Footer for page 2/3
-      doc.setFillColor(30, 41, 59);
-      doc.rect(0, 280, 210, 20, 'F');
-      doc.setFontSize(9);
-      doc.setTextColor(148, 163, 184);
-      doc.text('Page 2 of 3', 20, 290);
-      doc.text('© 2026 Synapsee AI Inc. • Confidential Report', 105, 290, { align: 'center' });
-      
-      // ===== PAGE 3: RECOMMENDATIONS =====
-      doc.addPage();
-      
-      // Header for page 3
-      doc.setFillColor(30, 41, 59);
-      doc.rect(0, 0, 210, 30, 'F');
-      await addLogoToPDF(doc, 150, 5, 50, 20);
-      
-      doc.setFontSize(16);
-      doc.setTextColor(255, 255, 255);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Strategic Recommendations', 20, 20);
-      
-      // 5. STRATEGIC RECOMMENDATIONS
-      yPosition = 40;
-      doc.setFontSize(16);
-      doc.setTextColor(30, 64, 175);
-      doc.setFont('helvetica', 'bold');
-      doc.text('5. Strategic Recommendations', 20, yPosition);
-      doc.text('🎯', 10, yPosition);
-      
-      doc.setFontSize(10);
-      doc.setTextColor(30, 41, 59);
-      doc.setFont('helvetica', 'normal');
-      yPosition += 10;
-      
-      const recommendations = [
-        { icon: '✅', text: 'Battery safety and insulation compliance' },
-        { icon: '✅', text: 'Comfort and weight optimization of heating elements' },
-        { icon: '✅', text: 'Clear differentiation from regular products' },
-        { icon: '📍', text: 'Target Northern India regions (Delhi, Haryana, Rajasthan)' },
-        { icon: '📍', text: 'Expand to hilly and cold-prone regions' },
-        { icon: '📈', text: 'Implement phased marketing approach' },
-        { icon: '💰', text: 'Consider strategic pricing based on competitor analysis' },
-        { icon: '🔄', text: 'Regular market monitoring for trend adjustments' }
-      ];
-      
-      recommendations.forEach(rec => {
-        doc.text(rec.icon, 25, yPosition);
-        doc.text(rec.text, 32, yPosition);
-        yPosition += 7;
-      });
-      
-      yPosition += 10;
-      
+      // 4. COMPETITOR ANALYSIS
+doc.setFontSize(16);
+doc.setTextColor(30, 64, 175);
+doc.setFont('helvetica', 'bold');
+doc.text('4. Competitor Landscape', 20, yPosition);
+doc.text('⚔️', 10, yPosition);
+
+doc.setFontSize(10);
+doc.setTextColor(30, 41, 59);
+doc.setFont('helvetica', 'normal');
+yPosition += 10;
+
+// Use for loop instead of forEach to allow async operations
+for (let index = 0; index < competitors.length; index++) {
+  const competitor = competitors[index];
+  
+  // Competitor card
+  if (index % 2 === 0) {
+    doc.setFillColor(248, 250, 252); // slate-50 for even rows
+  } else {
+    doc.setFillColor(255, 255, 255); // white for odd rows
+  }
+  doc.roundedRect(20, yPosition - 5, 170, 35, 3, 3, 'F');
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.2);
+  doc.rect(20, yPosition - 5, 170, 35);
+  
+  // Competitor name and price
+  doc.setFontSize(11);
+  doc.setTextColor(30, 41, 59);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`${index + 1}. ${competitor.name}`, 25, yPosition);
+  
+  doc.setFontSize(10);
+  doc.setTextColor(59, 130, 246);
+  doc.text(competitor.price, 150, yPosition, { align: 'right' });
+  
+  // Rating stars
+  doc.setFontSize(9);
+  doc.setTextColor(245, 158, 11);
+  let stars = '';
+  for (let i = 1; i <= 5; i++) {
+    stars += i <= competitor.rating ? '★' : '☆';
+  }
+  doc.text(stars, 25, yPosition + 6);
+  
+  // Market share
+  doc.setFontSize(9);
+  doc.setTextColor(34, 197, 94);
+  doc.text(`Market Share: ${competitor.marketShare}`, 25, yPosition + 12);
+  
+  // Features
+  doc.setFontSize(8);
+  doc.setTextColor(100, 116, 139);
+  const featuresText = `Features: ${competitor.features.join(', ')}`;
+  const splitFeatures = doc.splitTextToSize(featuresText, 140);
+  doc.text(splitFeatures, 25, yPosition + 18);
+  
+  yPosition += 40;
+  
+  // Add new page if running out of space
+  if (yPosition > 250 && index < competitors.length - 1) {
+    // Footer for page 2
+    doc.setFillColor(30, 41, 59);
+    doc.rect(0, 280, 210, 20, 'F');
+    doc.setFontSize(9);
+    doc.setTextColor(148, 163, 184);
+    doc.text('Page 2 of 3', 20, 290);
+    doc.text('© 2026 Synapsee AI Inc. • Confidential Report', 105, 290, { align: 'center' });
+    
+    doc.addPage();
+    
+    // Header for new page
+    doc.setFillColor(30, 41, 59);
+    doc.rect(0, 0, 210, 30, 'F');
+    await addLogoToPDF(doc, 150, 5, 50, 20);
+    doc.setFontSize(16);
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Competitor Analysis (Continued)', 20, 20);
+    
+    yPosition = 40;
+  }
+}
+
+yPosition += 10;
       // Conclusion box
       doc.setFillColor(240, 253, 244); // green-50
       doc.roundedRect(20, yPosition, 170, 40, 3, 3, 'F');
