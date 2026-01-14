@@ -517,9 +517,9 @@ export default function Home() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
                 <div>
-                  <label className="block text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">Max Price ($) <span className="text-red-500">*</span></label>
+                  <label className="block text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">Max Price (₹) <span className="text-red-500">*</span></label>
                   <div className="relative">
-                    <span className="absolute left-4 top-4 text-slate-400">$</span>
+                    <span className="absolute left-4 top-4 text-slate-400">₹</span>
                     <input 
                       name="price" 
                       type="number" 
