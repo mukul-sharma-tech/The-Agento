@@ -365,8 +365,6 @@
 //     </div>
 //   );
 // }
-
-
 "use client";
 import React, { useState, FormEvent, ChangeEvent } from 'react';
 import Transition from '@/components/transition';
@@ -541,7 +539,7 @@ export default function Home() {
   // Get competitors based on product type
   const competitors = getCompetitors(formData.product, selectedCurrency.symbol);
 
-  // Handle input change with proper event typing - THIS WAS THE ERROR
+  // Handle input change with proper event typing
   const handleInput = (
     e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
@@ -558,103 +556,257 @@ export default function Home() {
     formData.description.trim().length > 0;
 
   // Function to generate and download PDF
-  const downloadPDF = () => {
+  const downloadPDF = async () => {
     try {
-      // Check if jsPDF is available
-      if (typeof window !== 'undefined') {
-        // Dynamically import jsPDF
-        import('jspdf').then((jsPDFModule) => {
-          const { jsPDF } = jsPDFModule;
-          
-          // Create new PDF document
-          const doc = new jsPDF();
-          
-          // Set document properties
-          doc.setProperties({
-            title: `Synapsee Report - ${formData.product}`,
-            subject: 'Market Intelligence Analysis',
-            author: 'Synapsee AI',
-            keywords: 'market, analysis, intelligence, report',
-            creator: 'Synapsee AI Engine'
-          });
-          
-          // Add logo/header
-          doc.setFontSize(20);
-          doc.setTextColor(0, 0, 128);
-          doc.text('Synapsee AI Intelligence Report', 20, 20);
-          
-          doc.setFontSize(12);
-          doc.setTextColor(100, 100, 100);
-          doc.text(`Product: ${formData.product} | Region: ${formData.region} | Currency: ${selectedCurrency.code}`, 20, 30);
-          doc.text(`Generated on: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, 20, 38);
-          
-          // Add separator
-          doc.setDrawColor(0, 0, 128);
-          doc.line(20, 42, 190, 42);
-          
-          // Add content
-          let yPosition = 50;
-          doc.setFontSize(16);
-          doc.setTextColor(0, 0, 0);
-          doc.text('Executive Summary & Feasibility', 20, yPosition);
-          
-          doc.setFontSize(11);
-          yPosition += 10;
-          const summaryLines = doc.splitTextToSize(
-            `Market analysis for ${formData.product} in ${formData.region} indicates a competitive landscape. ` +
-            `Your proposed price of ${selectedCurrency.symbol}${formData.price} positions the product in the ${parseInt(formData.price) > 3000 ? 'premium' : 'mid-range'} segment. ` +
-            `Key competitors have been identified with market shares ranging from 18% to 35%.`,
-            170
-          );
-          doc.text(summaryLines, 20, yPosition);
-          
-          yPosition += (summaryLines.length * 7) + 15;
-          
-          // Add competitors section
-          doc.setFontSize(16);
-          doc.text('Competitor Analysis', 20, yPosition);
-          
-          yPosition += 10;
-          competitors.forEach((competitor, index) => {
-            if (yPosition > 250) {
-              doc.addPage();
-              yPosition = 20;
-            }
-            
-            doc.setFontSize(12);
-            doc.setTextColor(0, 0, 128);
-            doc.text(`${index + 1}. ${competitor.name}`, 25, yPosition);
-            
-            doc.setFontSize(10);
-            doc.setTextColor(0, 0, 0);
-            doc.text(`Price: ${competitor.price} | Rating: ${competitor.rating}/5 | Market Share: ${competitor.marketShare}`, 25, yPosition + 7);
-            
-            doc.text(`Features: ${competitor.features.join(', ')}`, 25, yPosition + 14);
-            
-            yPosition += 25;
-          });
-          
-          // Add footer
-          doc.setFontSize(10);
-          doc.setTextColor(100, 100, 100);
-          const pageCount = doc.getNumberOfPages();
-          for (let i = 1; i <= pageCount; i++) {
-            doc.setPage(i);
-            doc.text(`Page ${i} of ${pageCount}`, 20, 285);
-            doc.text('© 2026 Synapsee AI Inc. - Confidential Report', 20, 290);
-          }
-          
-          // Save the PDF
-          doc.save(`synapsee-report-${formData.product.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}.pdf`);
-        }).catch((error) => {
-          console.error('Error loading jsPDF:', error);
-          // Fallback to simple text download if jsPDF fails
-          downloadTextReport();
-        });
+      // Dynamically import jsPDF
+      const { jsPDF } = await import('jspdf');
+      
+      // Create new PDF document with A4 size
+      const doc = new jsPDF('p', 'mm', 'a4');
+      
+      // Set document properties
+      doc.setProperties({
+        title: `Synapsee Report - ${formData.product}`,
+        subject: 'Market Intelligence Analysis',
+        author: 'Synapsee AI',
+        keywords: 'market, analysis, intelligence, report',
+        creator: 'Synapsee AI Engine'
+      });
+      
+      // Add logo/header section
+      doc.setFillColor(30, 41, 59); // slate-900 color
+      doc.rect(0, 0, 210, 40, 'F');
+      
+      doc.setFontSize(24);
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Synapsee AI', 20, 25);
+      
+      doc.setFontSize(12);
+      doc.setTextColor(148, 163, 184); // slate-400
+      doc.setFont('helvetica', 'normal');
+      doc.text('Intelligence Report', 20, 32);
+      
+      // Report info section
+      doc.setFontSize(14);
+      doc.setTextColor(0, 0, 0);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Product Analysis Report', 20, 55);
+      
+      doc.setFontSize(10);
+      doc.setTextColor(100, 116, 139); // slate-500
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Product: ${formData.product}`, 20, 65);
+      doc.text(`Region: ${formData.region}`, 20, 71);
+      doc.text(`Currency: ${selectedCurrency.code} (${selectedCurrency.symbol})`, 20, 77);
+      doc.text(`Target Age: ${formData.age}`, 20, 83);
+      doc.text(`Generated: ${new Date().toLocaleDateString()}`, 20, 89);
+      
+      // Add separator line
+      doc.setDrawColor(59, 130, 246); // blue-500
+      doc.setLineWidth(0.5);
+      doc.line(20, 95, 190, 95);
+      
+      // Executive Summary
+      let yPosition = 105;
+      doc.setFontSize(16);
+      doc.setTextColor(30, 64, 175); // blue-900
+      doc.setFont('helvetica', 'bold');
+      doc.text('Executive Summary & Feasibility', 20, yPosition);
+      
+      doc.setFontSize(11);
+      doc.setTextColor(0, 0, 0);
+      doc.setFont('helvetica', 'normal');
+      yPosition += 10;
+      
+      const summaryPoints = [
+        `• Market prices range between ${selectedCurrency.symbol}1,200 to ${selectedCurrency.symbol}3,900.`,
+        `• Your product at ${selectedCurrency.symbol}${formData.price} is positioned in the ${parseInt(formData.price) > 3000 ? 'premium' : 'mid-range'} segment.`,
+        `• Feasibility analysis shows strong market potential in ${formData.region}.`,
+        `• Recommended entry strategy: Launch with limited inventory in Q4 2024.`
+      ];
+      
+      summaryPoints.forEach(point => {
+        if (yPosition > 270) {
+          doc.addPage();
+          yPosition = 20;
+        }
+        doc.text(point, 25, yPosition);
+        yPosition += 7;
+      });
+      
+      yPosition += 5;
+      
+      // Best Time to Market
+      if (yPosition > 220) {
+        doc.addPage();
+        yPosition = 20;
       }
+      
+      doc.setFontSize(14);
+      doc.setTextColor(30, 64, 175);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Best Time to Market', 20, yPosition);
+      
+      doc.setFontSize(11);
+      doc.setTextColor(0, 0, 0);
+      doc.setFont('helvetica', 'normal');
+      yPosition += 8;
+      
+      const timingPoints = [
+        `• Primary Window: October to December`,
+        `• Pre-marketing: Begin awareness campaigns from August`,
+        `• Avoid: Heavy marketing from March to June`
+      ];
+      
+      timingPoints.forEach(point => {
+        doc.text(point, 25, yPosition);
+        yPosition += 7;
+      });
+      
+      yPosition += 10;
+      
+      // Manufacturing & Materials
+      if (yPosition > 220) {
+        doc.addPage();
+        yPosition = 20;
+      }
+      
+      doc.setFontSize(14);
+      doc.setTextColor(30, 64, 175);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Manufacturing & Materials', 20, yPosition);
+      
+      doc.setFontSize(11);
+      doc.setTextColor(0, 0, 0);
+      doc.setFont('helvetica', 'normal');
+      yPosition += 8;
+      
+      const manufacturingPoints = [
+        `• Safe Batch Size: Initial limited batch production recommended`,
+        `• Scale manufacturing closer to winter season`,
+        `• Sourcing Strategy: Procure components March–June (lowest demand)`,
+        `• Batteries: Early bulk purchasing advised`
+      ];
+      
+      manufacturingPoints.forEach(point => {
+        doc.text(point, 25, yPosition);
+        yPosition += 7;
+      });
+      
+      yPosition += 10;
+      
+      // Competitor Analysis
+      if (yPosition > 220) {
+        doc.addPage();
+        yPosition = 20;
+      }
+      
+      doc.setFontSize(16);
+      doc.setTextColor(30, 64, 175);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Competitor Landscape', 20, yPosition);
+      
+      doc.setFontSize(11);
+      doc.setTextColor(0, 0, 0);
+      doc.setFont('helvetica', 'normal');
+      yPosition += 10;
+      
+      competitors.forEach((competitor, index) => {
+        if (yPosition > 250) {
+          doc.addPage();
+          yPosition = 20;
+        }
+        
+        doc.setFontSize(12);
+        doc.setTextColor(30, 41, 59); // slate-900
+        doc.setFont('helvetica', 'bold');
+        doc.text(`${index + 1}. ${competitor.name}`, 25, yPosition);
+        
+        doc.setFontSize(10);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Price: ${competitor.price} | Rating: ${competitor.rating}/5 | Market Share: ${competitor.marketShare}`, 25, yPosition + 6);
+        
+        doc.text(`Features: ${competitor.features.join(', ')}`, 25, yPosition + 12);
+        
+        yPosition += 25;
+      });
+      
+      yPosition += 5;
+      
+      // Competitive Insight
+      if (yPosition > 250) {
+        doc.addPage();
+        yPosition = 20;
+      }
+      
+      doc.setFontSize(12);
+      doc.setTextColor(146, 64, 14); // amber-800
+      doc.setFont('helvetica', 'bold');
+      doc.text('Competitive Insight:', 20, yPosition);
+      
+      doc.setFontSize(10);
+      doc.setTextColor(146, 64, 14);
+      doc.setFont('helvetica', 'normal');
+      yPosition += 7;
+      const insightText = `Your product at ${selectedCurrency.symbol}${formData.price} competes directly with ${competitors[0].name} (${competitors[0].price}) and ${competitors[1].name} (${competitors[1].price}). Differentiate through unique features.`;
+      const splitInsight = doc.splitTextToSize(insightText, 170);
+      doc.text(splitInsight, 20, yPosition);
+      yPosition += splitInsight.length * 6 + 10;
+      
+      // Strategic Recommendations
+      if (yPosition > 220) {
+        doc.addPage();
+        yPosition = 20;
+      }
+      
+      doc.setFontSize(16);
+      doc.setTextColor(30, 64, 175);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Strategic Recommendations', 20, yPosition);
+      
+      doc.setFontSize(11);
+      doc.setTextColor(0, 0, 0);
+      doc.setFont('helvetica', 'normal');
+      yPosition += 10;
+      
+      const recommendations = [
+        `• Battery safety and insulation compliance`,
+        `• Comfort and weight optimization`,
+        `• Clear differentiation from regular products`,
+        `• Target Northern India regions with colder winters`,
+        `• Expand to hilly and cold-prone regions`
+      ];
+      
+      recommendations.forEach(rec => {
+        if (yPosition > 270) {
+          doc.addPage();
+          yPosition = 20;
+        }
+        doc.text(rec, 25, yPosition);
+        yPosition += 7;
+      });
+      
+      // Add footer on all pages
+      const pageCount = doc.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(100, 116, 139);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Page ${i} of ${pageCount}`, 20, 285);
+        doc.text('© 2026 Synapsee AI Inc. - Confidential Report', 105, 285, { align: 'center' });
+        doc.text(`Report ID: ${Date.now()}`, 180, 285, { align: 'right' });
+      }
+      
+      // Save the PDF
+      const safeProductName = formData.product.replace(/[^a-z0-9]/gi, '-').toLowerCase();
+      doc.save(`synapsee-report-${safeProductName}-${Date.now()}.pdf`);
+      
     } catch (error) {
       console.error('Error generating PDF:', error);
-      // Fallback to simple text download
+      alert('Error generating PDF. Please try again or use the text report.');
       downloadTextReport();
     }
   };
@@ -663,19 +815,36 @@ export default function Home() {
   const downloadTextReport = () => {
     const reportText = `
 Synapsee AI Market Analysis Report
-===============================
+===================================
 Product: ${formData.product}
 Region: ${formData.region}
-Currency: ${selectedCurrency.code}
+Currency: ${selectedCurrency.code} (${selectedCurrency.symbol})
+Price: ${selectedCurrency.symbol}${formData.price}
+Target Age: ${formData.age}
 Generated: ${new Date().toLocaleString()}
 
-EXECUTIVE SUMMARY
-=================
-Market analysis for ${formData.product} in ${formData.region} indicates a competitive landscape.
-Your proposed price of ${selectedCurrency.symbol}${formData.price} positions the product appropriately.
+EXECUTIVE SUMMARY & FEASIBILITY
+================================
+• Market prices range between ${selectedCurrency.symbol}1,200 to ${selectedCurrency.symbol}3,900.
+• Your product at ${selectedCurrency.symbol}${formData.price} is positioned in the ${parseInt(formData.price) > 3000 ? 'premium' : 'mid-range'} segment.
+• Feasibility analysis shows strong market potential in ${formData.region}.
+• Recommended entry strategy: Launch with limited inventory in Q4 2024.
 
-COMPETITOR ANALYSIS
+BEST TIME TO MARKET
 ===================
+• Primary Window: October to December
+• Pre-marketing: Begin awareness campaigns from August
+• Avoid: Heavy marketing from March to June
+
+MANUFACTURING & MATERIALS
+=========================
+• Safe Batch Size: Initial limited batch production recommended
+• Scale manufacturing closer to winter season
+• Sourcing Strategy: Procure components March–June (lowest demand)
+• Batteries: Early bulk purchasing advised
+
+COMPETITOR LANDSCAPE
+====================
 ${competitors.map((c, i) => `
 ${i + 1}. ${c.name}
      Price: ${c.price}
@@ -683,6 +852,18 @@ ${i + 1}. ${c.name}
      Market Share: ${c.marketShare}
      Features: ${c.features.join(', ')}
 `).join('')}
+
+COMPETITIVE INSIGHT
+===================
+Your product at ${selectedCurrency.symbol}${formData.price} competes directly with ${competitors[0].name} (${competitors[0].price}) and ${competitors[1].name} (${competitors[1].price}). Differentiate through unique features.
+
+STRATEGIC RECOMMENDATIONS
+=========================
+• Battery safety and insulation compliance
+• Comfort and weight optimization
+• Clear differentiation from regular products
+• Target Northern India regions with colder winters
+• Expand to hilly and cold-prone regions
 
 © 2026 Synapsee AI Inc. - Confidential Report
     `;
@@ -992,7 +1173,7 @@ ${i + 1}. ${c.name}
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">Currency</label>
+                  <label className="block text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">Currency <span className="text-red-500">*</span></label>
                   <div className="relative">
                     <select 
                       name="currency" 
@@ -1002,47 +1183,30 @@ ${i + 1}. ${c.name}
                     >
                       {currencies.map((currency) => (
                         <option key={currency.code} value={currency.code}>
-                          {currency.code} - {currency.name}
+                          {currency.symbol} {currency.code} - {currency.name}
                         </option>
                       ))}
                     </select>
                     <div className="absolute right-4 top-5 pointer-events-none text-slate-400">▼</div>
                   </div>
-                  <p className="text-xs text-slate-500 mt-1 ml-1">
-                    Selected: {selectedCurrency.name}
-                  </p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-                <div>
-                  <label className="block text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">Target Age</label>
-                  <div className="relative">
-                    <select 
-                      name="age" 
-                      value={formData.age}
-                      onChange={handleInput} 
-                      className="w-full p-4 bg-white border border-slate-200 rounded-xl text-slate-900 text-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none appearance-none cursor-pointer"
-                    >
-                      <option value="All">All Demographics</option>
-                      <option value="18-25">Gen Z (18-25)</option>
-                      <option value="26-40">Millennials (26-40)</option>
-                      <option value="40+">Gen X & Boomers (40+)</option>
-                    </select>
-                    <div className="absolute right-4 top-5 pointer-events-none text-slate-400">▼</div>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">Currency Preview</label>
-                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-slate-700">
-                    <div className="flex items-center gap-2">
-                      <span className="text-2xl font-bold">{selectedCurrency.symbol}</span>
-                      <div>
-                        <p className="font-medium">{selectedCurrency.name}</p>
-                        <p className="text-sm text-slate-500">{selectedCurrency.code} • {selectedCurrency.country}</p>
-                      </div>
-                    </div>
-                  </div>
+              <div>
+                <label className="block text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">Target Age</label>
+                <div className="relative">
+                  <select 
+                    name="age" 
+                    value={formData.age}
+                    onChange={handleInput} 
+                    className="w-full p-4 bg-white border border-slate-200 rounded-xl text-slate-900 text-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none appearance-none cursor-pointer"
+                  >
+                    <option value="All">All Demographics</option>
+                    <option value="18-25">Gen Z (18-25)</option>
+                    <option value="26-40">Millennials (26-40)</option>
+                    <option value="40+">Gen X & Boomers (40+)</option>
+                  </select>
+                  <div className="absolute right-4 top-5 pointer-events-none text-slate-400">▼</div>
                 </div>
               </div>
 
