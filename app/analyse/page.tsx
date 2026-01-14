@@ -2210,11 +2210,10 @@ Report Generated: ${new Date().toLocaleString()}
   // Result state
   if (step === 'result') {
     return (
-      <div className="min-h-screen w-screen bg-slate-50 flex flex-col"style={{ zoom: 0.8 }}>
-        {/* Responsive Header: Flex Col on Mobile, Row on Desktop */}
+      <div className="min-h-[125vh] w-[125vw] bg-slate-50 flex flex-col"style={{ zoom: 0.8 }}>
         <div className="bg-slate-900 text-white px-4 md:px-8 py-5 shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center sticky top-0 z-40 gap-4 md:gap-0">
           <div>
-            <h1 className="text-xl md:text-2xl font-bold tracking-tight">Intelligence Report</h1>
+            <h1 className="text-xl md:text-2xl font-bold tracking-tight">Market Analysis Report</h1>
             <p className="text-slate-400 text-xs md:text-sm mt-0.5">{formData.product} • {formData.region} • {selectedCurrency.code}</p>
           </div>
           
@@ -2253,7 +2252,7 @@ Report Generated: ${new Date().toLocaleString()}
 
   // Input form state (default)
   return (
-    <div className="flex h-screen w-screen bg-white overflow-hidden"style={{ zoom: 0.8 }}>
+    <div className="flex h-[125vh] w-[125vw] bg-white overflow-hidden" style={{ zoom: 0.8 }}>
         
         {/* Left Side: Hidden on Mobile/Tablet (lg:flex) */}
         <div className="hidden lg:flex w-1/3 relative flex-col justify-between p-12 text-white">
