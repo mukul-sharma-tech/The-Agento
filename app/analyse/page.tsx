@@ -2099,7 +2099,7 @@ Report Generated: ${new Date().toLocaleString()}
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
         
         <div class="p-6 md:p-8 border rounded-2xl bg-white shadow-lg hover:shadow-xl transition-shadow">
-           <h4 class="font-bold text-slate-500 uppercase tracking-widest text-xs md:text-sm mb-4">🚀 Best Time to Market</h4>
+           <h4 class="font-bold text-slate-500 uppercase tracking-widest text-lg md:text-xl mb-4">Best Time to Market</h4>
            <ul class="space-y-3 text-slate-700 text-sm md:text-base list-disc pl-5">
              <li><strong>Primary Window:</strong> October to December based on peak Google Trends interest.</li>
              <li><strong>Pre-marketing:</strong> Begin awareness campaigns from August to capture rising demand.</li>
@@ -2108,7 +2108,7 @@ Report Generated: ${new Date().toLocaleString()}
         </div>
         
         <div class="p-6 md:p-8 border rounded-2xl bg-white shadow-lg hover:shadow-xl transition-shadow">
-           <h4 class="font-bold text-slate-500 uppercase tracking-widest text-xs md:text-sm mb-4">🏭 Manufacturing & Materials</h4>
+           <h4 class="font-bold text-slate-500 uppercase tracking-widest text-lg md:text-xl mb-4">Manufacturing & Materials</h4>
            
            <p class="font-semibold text-slate-800 mb-2">Safe Batch Size:</p>
            <ul class="space-y-2 text-slate-600 text-sm md:text-base list-disc pl-5 mb-4">
@@ -2199,7 +2199,7 @@ Report Generated: ${new Date().toLocaleString()}
   // Result state
   if (step === 'result') {
     return (
-      <div className="min-h-screen w-screen bg-slate-50 flex flex-col">
+      <div className="min-h-screen w-screen bg-slate-50 flex flex-col"style={{ zoom: 0.8 }}>
         {/* Responsive Header: Flex Col on Mobile, Row on Desktop */}
         <div className="bg-slate-900 text-white px-4 md:px-8 py-5 shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center sticky top-0 z-40 gap-4 md:gap-0">
           <div>
@@ -2242,7 +2242,7 @@ Report Generated: ${new Date().toLocaleString()}
 
   // Input form state (default)
   return (
-    <div className="flex h-screen w-screen bg-white overflow-hidden">
+    <div className="flex h-screen w-screen bg-white overflow-hidden"style={{ zoom: 0.8 }}>
         
         {/* Left Side: Hidden on Mobile/Tablet (lg:flex) */}
         <div className="hidden lg:flex w-1/3 relative flex-col justify-between p-12 text-white">
