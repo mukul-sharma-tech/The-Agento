@@ -1746,35 +1746,42 @@ export default function Home() {
       yPosition += 10;
       
       // 4. COMPETITOR ANALYSIS
+// 4. COMPETITOR ANALYSIS
       doc.setFontSize(16);
-      doc.setTextColor(30, 64, 175);
+      doc.setTextColor(30, 64, 175); // blue-900
       doc.setFont('helvetica', 'bold');
       doc.text('4. Competitor Landscape', 20, yPosition);
       doc.text('⚔️', 10, yPosition);
       
       doc.setFontSize(10);
-      doc.setTextColor(30, 41, 59);
+      doc.setTextColor(30, 41, 59); // slate-900
       doc.setFont('helvetica', 'normal');
       yPosition += 10;
       
-      competitors.forEach((competitor, index) => {
-        // Competitor card - FIXED THIS LINE
+      // FIX: Use a standard 'for' loop instead of 'forEach' to allow await
+      for (let index = 0; index < competitors.length; index++) {
+        const competitor = competitors[index];
+        
+        // Competitor card styling
         if (index % 2 === 0) {
           doc.setFillColor(248, 250, 252); // slate-50 for even rows
         } else {
           doc.setFillColor(255, 255, 255); // white for odd rows
         }
+        
+        // Draw card background
         doc.roundedRect(20, yPosition - 5, 170, 35, 3, 3, 'F');
         doc.setDrawColor(226, 232, 240);
         doc.setLineWidth(0.2);
         doc.rect(20, yPosition - 5, 170, 35);
         
-        // Competitor name and price
+        // Competitor name
         doc.setFontSize(11);
         doc.setTextColor(30, 41, 59);
         doc.setFont('helvetica', 'bold');
         doc.text(`${index + 1}. ${competitor.name}`, 25, yPosition);
         
+        // Price
         doc.setFontSize(10);
         doc.setTextColor(59, 130, 246);
         doc.text(competitor.price, 150, yPosition, { align: 'right' });
@@ -1800,11 +1807,12 @@ export default function Home() {
         const splitFeatures = doc.splitTextToSize(featuresText, 140);
         doc.text(splitFeatures, 25, yPosition + 18);
         
+        // Increment Y position for next card
         yPosition += 40;
         
-        // Add new page if running out of space
+        // Pagination Logic
         if (yPosition > 250 && index < competitors.length - 1) {
-          // Footer for page 2
+          // Footer for current page
           doc.setFillColor(30, 41, 59);
           doc.rect(0, 280, 210, 20, 'F');
           doc.setFontSize(9);
@@ -1817,7 +1825,10 @@ export default function Home() {
           // Header for new page
           doc.setFillColor(30, 41, 59);
           doc.rect(0, 0, 210, 30, 'F');
+          
+          // AWAIT WORKS HERE NOW
           await addLogoToPDF(doc, 150, 5, 50, 20);
+          
           doc.setFontSize(16);
           doc.setTextColor(255, 255, 255);
           doc.setFont('helvetica', 'bold');
