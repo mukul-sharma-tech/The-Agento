@@ -1836,7 +1836,7 @@ export default function Home() {
           
           yPosition = 40;
         }
-      });
+      }
       
       yPosition += 10;
       
