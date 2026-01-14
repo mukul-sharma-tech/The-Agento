@@ -17,7 +17,9 @@ export const metadata: Metadata = {
   title: "SynapseeAI",
   description: "Agentic Market Intelligence & Feasibility Engine",
 };
-
+icons: {
+    icon: '/logo.png',
+  },
 export default function RootLayout({
   children,
 }: {
