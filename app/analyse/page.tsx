@@ -1758,8 +1758,12 @@ export default function Home() {
       yPosition += 10;
       
       competitors.forEach((competitor, index) => {
-        // Competitor card
-        doc.setFillColor(index % 2 === 0 ? 248, 250, 252 : 255, 255, 255);
+        // Competitor card - FIXED THIS LINE
+        if (index % 2 === 0) {
+          doc.setFillColor(248, 250, 252); // slate-50 for even rows
+        } else {
+          doc.setFillColor(255, 255, 255); // white for odd rows
+        }
         doc.roundedRect(20, yPosition - 5, 170, 35, 3, 3, 'F');
         doc.setDrawColor(226, 232, 240);
         doc.setLineWidth(0.2);
