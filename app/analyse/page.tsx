@@ -2426,7 +2426,7 @@ Report Generated: ${new Date().toLocaleString()}
         <div class="p-6 md:p-8 border rounded-2xl bg-white shadow-lg hover:shadow-xl transition-shadow">
            <h4 class="font-bold text-slate-500 uppercase tracking-widest text-lg md:text-xl mb-4">Best Time to Market</h4>
            <ul class="space-y-3 text-slate-700 text-sm md:text-base list-disc pl-5">
-             <li><strong>Primary Window:</strong> October to December based on peak Google Trends interest.</li>
+             <li><strong>Primary Window:</strong> October to December based on peak Trends interest.</li>
              <li><strong>Pre-marketing:</strong> Begin awareness campaigns from August to capture rising demand.</li>
              <li><strong>Avoid:</strong> Heavy marketing from March to June due to consistently low interest levels.</li>
            </ul>
