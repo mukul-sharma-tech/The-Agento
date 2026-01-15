@@ -2460,9 +2460,6 @@ Report Generated: ${new Date().toLocaleString()}
                   <p class="text-slate-600">Price: <span class="font-semibold">${competitor.price}</span></p>
                 </div>
                 <div class="flex items-center gap-3">
-                  <div class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-semibold">
-                    ${competitor.reviews}★ Rating
-                  </div>
                   <div class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-semibold">
                     ${competitor.reviews_found} Reviews
                   </div>
