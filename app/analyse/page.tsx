@@ -2092,7 +2092,7 @@ export default function Home() {
       const findings = [
         `- Market prices: ${currencyCode} 1,200 - ${currencyCode} 3,900`,
         `- Your position: ${currencyCode} ${formData.price} (${parseInt(formData.price) > 3000 ? 'Premium' : 'Mid-range'})`,
-        `- Recommended: Limited launch in Q4 2024`
+        `- Recommended: Limited launch in Q4 2026`
       ];
       
       findings.forEach((finding, index) => {
