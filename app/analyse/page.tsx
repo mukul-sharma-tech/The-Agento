@@ -2250,7 +2250,7 @@ export default function Home() {
         
         // Market Share
         doc.setTextColor(34, 197, 94);
-        doc.text(`Market Share: ${competitor.marketShare}`, 25, yPosition + 12);
+        // doc.text(`Market Share: ${competitor.marketShare}`, 25, yPosition + 12);
         
         // Features
         doc.setTextColor(100, 116, 139);
