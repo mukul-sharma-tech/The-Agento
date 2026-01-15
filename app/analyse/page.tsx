@@ -1286,7 +1286,7 @@ type Competitor = {
   price: string;
   rating: number;
   features: string[];
-  reviews_found: string; 
+  reviews_found: number; 
 };
 
 // Popular world currencies
