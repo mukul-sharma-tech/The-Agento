@@ -1445,7 +1445,7 @@ export default function Home() {
         // Create image element
         const img = new Image();
         img.crossOrigin = 'anonymous';
-        img.src = 'public/logo2.png';
+        img.src = 'logo.png';
         
         img.onload = () => {
           try {
@@ -1995,7 +1995,7 @@ export default function Home() {
       // ===== PAGE 1: HEADER =====
       
       // Header Background
-      doc.setFillColor(30, 41, 59); // slate-900
+      doc.setFillColor(255, 255, 255)); // slate-900
       doc.rect(0, 0, 210, 50, 'F');
       
       // Logo (Async wait)
@@ -2366,7 +2366,7 @@ Based on comprehensive analysis, ${formData.product} shows strong market viabili
 With strategic implementation of the above recommendations, successful market entry and growth can be achieved.
 
 ---
-© 2026 Synapsee AI Inc. • Confidential Report
+© 2026 Synapsee AI Inc.
 Report Generated: ${new Date().toLocaleString()}
     `;
     
