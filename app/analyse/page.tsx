@@ -1995,7 +1995,7 @@ export default function Home() {
       // ===== PAGE 1: HEADER =====
       
       // Header Background
-      doc.setFillColor(30, 41, 59); // slate-900
+      doc.setFillColor(255, 92, 92); // slate-900
       doc.rect(0, 0, 210, 50, 'F');
       
       // Logo (Async wait)
