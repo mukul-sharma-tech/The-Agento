@@ -2003,12 +2003,12 @@ export default function Home() {
       
       // Title
       doc.setFontSize(24);
-      doc.setTextColor(255, 255, 255);
+      doc.setTextColor(30, 58, 138);
       doc.setFont('helvetica', 'bold');
       doc.text('Market Analysis Report', 20, 30);
       
       doc.setFontSize(12);
-      doc.setTextColor(148, 163, 184); // slate-400
+      doc.setTextColor(59, 130, 246); // slate-400
       doc.setFont('helvetica', 'normal');
       doc.text('Agentic Market Intelligence & Feasibility Engine', 20, 37);
       
@@ -2152,26 +2152,26 @@ export default function Home() {
       doc.rect(0, 280, 210, 20, 'F');
       doc.setFontSize(9);
       doc.setTextColor(148, 163, 184);
-      doc.text('Page 1 of 3', 20, 290);
+      doc.text('Page 1 of 2', 20, 290);
       doc.text('Synapsee AI', 105, 290, { align: 'center' });
       
       // ===== PAGE 2 =====
       doc.addPage();
       
       // Header Page 2
-      doc.setFillColor(30, 41, 59);
+      doc.setFillColor(255,255,255);
       doc.rect(0, 0, 210, 30, 'F');
       await addLogoToPDF(doc, 150, 5, 50, 20);
       
       doc.setFontSize(16);
-      doc.setTextColor(255, 255, 255);
+      doc.setTextColor(59, 130, 246);
       doc.setFont('helvetica', 'bold');
       doc.text('Market Intelligence Report', 20, 20);
       
       // 3. MANUFACTURING
       yPosition = 40;
       doc.setFontSize(16);
-      doc.setTextColor(30, 64, 175);
+      doc.setTextColor(30, 58, 138);
       doc.setFont('helvetica', 'bold');
       // REMOVED EMOJI HERE
       doc.text('3. Manufacturing & Materials', 20, yPosition);
