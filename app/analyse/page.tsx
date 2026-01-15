@@ -2657,7 +2657,7 @@ Report Generated: ${new Date().toLocaleString()}
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">Max Price <span className="text-red-500">*</span></label>
+                  <label className="block text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">Target Price <span className="text-red-500">*</span></label>
                   <div className="relative">
                     <span className="absolute left-4 top-4 text-slate-400 font-medium text-lg">{selectedCurrency.symbol}</span>
                     <input 
