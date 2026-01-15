@@ -1445,7 +1445,7 @@ export default function Home() {
         // Create image element
         const img = new Image();
         img.crossOrigin = 'anonymous';
-        img.src = '/logo.png';
+        img.src = '/logo2.png';
         
         img.onload = () => {
           try {
@@ -2153,7 +2153,7 @@ export default function Home() {
       doc.setFontSize(9);
       doc.setTextColor(148, 163, 184);
       doc.text('Page 1 of 3', 20, 290);
-      doc.text('Synapsee AI Inc. Confidential', 105, 290, { align: 'center' });
+      doc.text('Synapsee AI', 105, 290, { align: 'center' });
       
       // ===== PAGE 2 =====
       doc.addPage();
@@ -2282,7 +2282,7 @@ export default function Home() {
       doc.setFontSize(9);
       doc.setTextColor(148, 163, 184);
       doc.text('Page 2 of 2', 20, 290);
-      doc.text('Synapsee AI Inc. Confidential', 105, 290, { align: 'center' });
+      doc.text('Synapsee AI', 105, 290, { align: 'center' });
       
       // Save
       const safeName = formData.product.replace(/[^a-z0-9]/gi, '-').toLowerCase();
@@ -2297,7 +2297,7 @@ export default function Home() {
   // Fallback function to download text report if PDF fails
   const downloadTextReport = () => {
     const reportText = `
-SYNAPSEE AI INTELLIGENCE REPORT
+SYNAPSEE AI MARKET ANALYSIS REPORT
 ================================
 
 PRODUCT ANALYSIS SUMMARY
@@ -2417,7 +2417,7 @@ Report Generated: ${new Date().toLocaleString()}
         <ul class="space-y-3 text-blue-800 text-base md:text-lg leading-relaxed list-disc pl-5">
           <li>Market prices range between ${selectedCurrency.symbol}1,200 to ${selectedCurrency.symbol}3,900. Your product at ${selectedCurrency.symbol}${formData.price} is positioned in the ${parseInt(formData.price) > 3000 ? 'premium' : 'mid-range'} segment.</li>
           <li>Feasibility analysis shows ${formData.product} has strong market potential with identified consumer interest in ${formData.region}.</li>
-          <li>Recommended entry strategy: Launch with limited inventory in Q4 2024, expand based on initial sales data.</li>
+          <li>Recommended entry strategy: Launch with limited inventory in Q4 2026, expand based on initial sales data.</li>
         </ul>
       </div>
 
