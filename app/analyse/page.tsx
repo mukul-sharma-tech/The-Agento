@@ -1445,7 +1445,7 @@ export default function Home() {
         // Create image element
         const img = new Image();
         img.crossOrigin = 'anonymous';
-        img.src = '/logo2.png';
+        img.src = 'public/logo2.png';
         
         img.onload = () => {
           try {
@@ -2005,7 +2005,7 @@ export default function Home() {
       doc.setFontSize(24);
       doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
-      doc.text('Intelligence Report', 20, 30);
+      doc.text('Market Analysis Report', 20, 30);
       
       doc.setFontSize(12);
       doc.setTextColor(148, 163, 184); // slate-400
