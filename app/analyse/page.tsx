@@ -2317,7 +2317,7 @@ Your proposed price of ${selectedCurrency.symbol}${formData.price} positions the
 Key Findings:
 • Market prices: ${selectedCurrency.symbol}1,200 - ${selectedCurrency.symbol}3,900
 • Your position: ${selectedCurrency.symbol}${formData.price} (${parseInt(formData.price) > 3000 ? 'Premium' : 'Mid-range'})
-• Recommended: Limited launch in Q4 2024
+• Recommended: Limited launch in Q4 2026
 
 2. BEST TIME TO MARKET
 ----------------------
