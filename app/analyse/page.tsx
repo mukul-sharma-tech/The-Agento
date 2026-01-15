@@ -1286,7 +1286,7 @@ type Competitor = {
   price: string;
   rating: number;
   features: string[];
-  marketShare: string;
+  reviews_found: string; 
 };
 
 // Popular world currencies
@@ -1310,94 +1310,94 @@ const getCompetitors = (productType: string, currencySymbol: string): Competitor
   if (productType.toLowerCase().includes('electric') || productType.toLowerCase().includes('heated')) {
     return [
       {
-        name: 'ThermoWear Pro',
+        name: 'MYHEAT',
         price: `${currencySymbol}2,999`,
-        rating: 4.2,
-        features: ['USB-C Charging', '3 Heat Levels', 'Water Resistant'],
-        marketShare: '32%'
+        rating: 3.9,
+        features: ['USB-C Charging', '5000mAh battery', 'Water Resistant'],
+        reviews_found: 8,
       },
       {
-        name: 'HeatTech Glow',
-        price: `${currencySymbol}3,499`,
-        rating: 4.5,
-        features: ['Fast Heating', 'App Control', 'Battery Pack'],
-        marketShare: '28%'
+        name: 'brrf',
+        price: `${currencySymbol} 2,366`,
+        rating: 3.6,
+        features: ['Fast Heating', 'App Control', '10000 mAh Battery Pack'],
+        reviews_found: 2 
       },
       {
-        name: 'WarmFlex Elite',
-        price: `${currencySymbol}2,799`,
-        rating: 4.0,
+        name: 'KACHEEG',
+        price: `${currencySymbol}5,496`,
+        rating: 2.1,
         features: ['Carbon Fiber Heating', 'Adjustable Zones', 'Quick Dry'],
-        marketShare: '22%'
+        reviews_found: 5, 
       },
       {
-        name: 'CozyCharge Plus',
-        price: `${currencySymbol}3,199`,
-        rating: 4.3,
+        name: 'Tapish',
+        price: `${currencySymbol}3,324`,
+        rating: 4.6,
         features: ['Wireless Charging', 'Smart Temperature', 'Moisture Wicking'],
-        marketShare: '18%'
+        reviews_found: 8, 
       }
     ];
   } else if (productType.toLowerCase().includes('sweater') || productType.toLowerCase().includes('jacket')) {
     return [
       {
-        name: 'NorthFace ThermoBall',
-        price: `${currencySymbol}2,299`,
+        name: 'MYHEAT',
+        price: `${currencySymbol}2,999`,
+        rating: 3.9,
+        features: ['USB-C Charging', '5000mAh battery', 'Water Resistant'],
+        reviews_found: 8,
+      },
+      {
+        name: 'brrf',
+        price: `${currencySymbol} 2,366`,
+        rating: 3.6,
+        features: ['Fast Heating', 'App Control', '10000 mAh Battery Pack'],
+        reviews_found: 2 
+      },
+      {
+        name: 'KACHEEG',
+        price: `${currencySymbol}5,496`,
+        rating: 2.1,
+        features: ['Carbon Fiber Heating', 'Adjustable Zones', 'Quick Dry'],
+        reviews_found: 5, 
+      },
+      {
+        name: 'Tapish',
+        price: `${currencySymbol}3,324`,
         rating: 4.6,
-        features: ['Down Alternative', 'Lightweight', 'Packable'],
-        marketShare: '35%'
-      },
-      {
-        name: 'Patagonia Nano Puff',
-        price: `${currencySymbol}3,899`,
-        rating: 4.8,
-        features: ['Recycled Materials', 'Wind Resistant', 'Eco-Friendly'],
-        marketShare: '25%'
-      },
-      {
-        name: 'Columbia HeatZone',
-        price: `${currencySymbol}1,999`,
-        rating: 4.1,
-        features: ['Omni-Heat Tech', 'Breathable', 'Value Pack'],
-        marketShare: '20%'
-      },
-      {
-        name: 'Uniqlo Ultra Warm',
-        price: `${currencySymbol}1,499`,
-        rating: 4.3,
-        features: ['Affordable', 'Basic Design', 'Warmth-to-Weight'],
-        marketShare: '20%'
+        features: ['Wireless Charging', 'Smart Temperature', 'Moisture Wicking'],
+        reviews_found: 8, 
       }
     ];
   } else {
     return [
       {
-        name: 'PremiumTech X1',
-        price: `${currencySymbol}2,500`,
-        rating: 4.4,
-        features: ['Advanced Features', 'Durable Build', 'Warranty'],
-        marketShare: '30%'
+        name: 'MYHEAT',
+        price: `${currencySymbol}2,999`,
+        rating: 3.9,
+        features: ['USB-C Charging', '5000mAh battery', 'Water Resistant'],
+        reviews_found: 8,
       },
       {
-        name: 'BudgetChoice Lite',
-        price: `${currencySymbol}1,200`,
-        rating: 3.8,
-        features: ['Cost Effective', 'Basic Functionality', 'Reliable'],
-        marketShare: '25%'
+        name: 'brrf',
+        price: `${currencySymbol} 2,366`,
+        rating: 3.6,
+        features: ['Fast Heating', 'App Control', '10000 mAh Battery Pack'],
+        reviews_found: 2 
       },
       {
-        name: 'InnovatePro Max',
-        price: `${currencySymbol}3,800`,
-        rating: 4.7,
-        features: ['Cutting Edge', 'Premium Materials', 'Smart Integration'],
-        marketShare: '25%'
+        name: 'KACHEEG',
+        price: `${currencySymbol}5,496`,
+        rating: 2.1,
+        features: ['Carbon Fiber Heating', 'Adjustable Zones', 'Quick Dry'],
+        reviews_found: 5, 
       },
       {
-        name: 'ValuePlus Standard',
-        price: `${currencySymbol}1,800`,
-        rating: 4.0,
-        features: ['Balanced Features', 'Good Quality', 'Popular Choice'],
-        marketShare: '20%'
+        name: 'Tapish',
+        price: `${currencySymbol}3,324`,
+        rating: 4.6,
+        features: ['Wireless Charging', 'Smart Temperature', 'Moisture Wicking'],
+        reviews_found: 8, 
       }
     ];
   }
@@ -2415,7 +2415,7 @@ Report Generated: ${new Date().toLocaleString()}
       <div class="p-6 md:p-8 bg-blue-50 border-l-8 border-blue-600 rounded-r-lg shadow-sm">
         <h3 class="text-2xl md:text-3xl font-bold text-blue-900 mb-4">Executive Summary & Feasibility</h3>
         <ul class="space-y-3 text-blue-800 text-base md:text-lg leading-relaxed list-disc pl-5">
-          <li>Market prices range between ${selectedCurrency.symbol}1,200 to ${selectedCurrency.symbol}3,900. Your product at ${selectedCurrency.symbol}${formData.price} is positioned in the ${parseInt(formData.price) > 3000 ? 'premium' : 'mid-range'} segment.</li>
+          <li>Market prices range between ${selectedCurrency.symbol}400 to ${selectedCurrency.symbol}2,100. Your product at ${selectedCurrency.symbol}${formData.price} is positioned in the ${parseInt(formData.price) > 3000 ? 'premium' : 'mid-range'} segment.</li>
           <li>Feasibility analysis shows ${formData.product} has strong market potential with identified consumer interest in ${formData.region}.</li>
           <li>Recommended entry strategy: Launch with limited inventory in Q4 2026, expand based on initial sales data.</li>
         </ul>
@@ -2426,7 +2426,7 @@ Report Generated: ${new Date().toLocaleString()}
         <div class="p-6 md:p-8 border rounded-2xl bg-white shadow-lg hover:shadow-xl transition-shadow">
            <h4 class="font-bold text-slate-500 uppercase tracking-widest text-lg md:text-xl mb-4">Best Time to Market</h4>
            <ul class="space-y-3 text-slate-700 text-sm md:text-base list-disc pl-5">
-             <li><strong>Primary Window:</strong> October to December based on peak Trends interest.</li>
+             <li><strong>Primary Window:</strong> October to December based on peak trends interest.</li>
              <li><strong>Pre-marketing:</strong> Begin awareness campaigns from August to capture rising demand.</li>
              <li><strong>Avoid:</strong> Heavy marketing from March to June due to consistently low interest levels.</li>
            </ul>
@@ -2462,10 +2462,10 @@ Report Generated: ${new Date().toLocaleString()}
                 </div>
                 <div class="flex items-center gap-3">
                   <div class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-semibold">
-                    ${competitor.rating}★ Rating
+                    ${competitor.reviews}★ Rating
                   </div>
                   <div class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-semibold">
-                    ${competitor.marketShare} Market Share
+                    ${competitor.reviews_found} Reviews
                   </div>
                 </div>
               </div>
@@ -2487,7 +2487,7 @@ Report Generated: ${new Date().toLocaleString()}
             <span class="text-amber-500 text-xl">⚠</span>
             <div>
               <p class="font-semibold text-amber-800">Competitive Insight:</p>
-              <p class="text-amber-700 text-sm mt-1">Your product at ${selectedCurrency.symbol}${formData.price} competes directly with ${competitors[0].name} (${competitors[0].price}) and ${competitors[1].name} (${competitors[1].price}). Differentiate through unique features in your description.</p>
+              <p class="text-amber-700 text-sm mt-1">Your product at ${selectedCurrency.symbol}${formData.price} competes majorly with ${competitors[0].name} (${competitors[0].price}) and ${competitors[1].name} (${competitors[1].price}). Differentiate through unique features in your description.</p>
             </div>
           </div>
         </div>
