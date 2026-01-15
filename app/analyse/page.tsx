@@ -2112,7 +2112,7 @@ export default function Home() {
       doc.setFillColor(255, 255, 255);
       doc.roundedRect(20, yPosition + 5, 170, 30, 3, 3, 'F');
       doc.setDrawColor(226, 232, 240);
-      doc.rect(20, yPosition + 5, 170, 30);
+      // doc.rect(20, yPosition + 5, 170, 30);
       
       doc.setFontSize(9);
       doc.setTextColor(100, 116, 139);
