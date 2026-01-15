@@ -2342,7 +2342,6 @@ ${competitors.map((c, i) => `
 ${i + 1}. ${c.name}
      Price: ${c.price}
      Rating: ${c.rating}/5 ${'★'.repeat(Math.floor(c.rating))}${'☆'.repeat(5 - Math.floor(c.rating))}
-     Market Share: ${c.marketShare}
      Features: ${c.features.join(', ')}
 `).join('')}
 
