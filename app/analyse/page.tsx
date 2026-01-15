@@ -2638,7 +2638,7 @@ Report Generated: ${new Date().toLocaleString()}
                     value={formData.product}
                     onChange={handleInput} 
                     className="w-full p-4 bg-white border border-slate-200 rounded-xl text-slate-900 text-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition placeholder:text-slate-300" 
-                    placeholder="e.g. Heated Jacket" 
+                    placeholder="e.g. Sunglasses" 
                     required
                   />
                 </div>
@@ -2666,7 +2666,7 @@ Report Generated: ${new Date().toLocaleString()}
                       value={formData.price}
                       onChange={handleInput} 
                       className="w-full p-4 pl-10 bg-white border border-slate-200 rounded-xl text-slate-900 text-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition placeholder:text-slate-300" 
-                      placeholder="3499" 
+                      placeholder="500" 
                       min="0"
                       step="0.01"
                       required
