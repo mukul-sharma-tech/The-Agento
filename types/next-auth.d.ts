@@ -1,23 +1,3 @@
-// import NextAuth from "next-auth";
-
-// declare module "next-auth" {
-//   interface Session {
-//     user: {
-//       id: string;
-//       name?: string | null;
-//       email?: string | null;
-//       companyName: string;
-//     };
-//   }
-// }
-
-// declare module "next-auth/jwt" {
-//   interface JWT {
-//     id: string;
-//     companyName: string;
-//   }
-// }
-
 import NextAuth, { DefaultSession } from "next-auth";
 import mongoose from "mongoose";
 
@@ -32,13 +12,17 @@ declare global {
 declare module "next-auth" {
   interface User {
     id: string;
-    companyName: string;
+    company_id: string;
+    company_name: string;
+    role: "admin" | "employee";
   }
 
   interface Session {
     user: {
       id: string;
-      companyName: string;
+      company_id: string;
+      company_name: string;
+      role: "admin" | "employee";
     } & DefaultSession["user"];
   }
 }
@@ -46,7 +30,9 @@ declare module "next-auth" {
 declare module "next-auth/jwt" {
   interface JWT {
     id: string;
-    companyName: string;
+    company_id: string;
+    company_name: string;
+    role: "admin" | "employee";
   }
 }
 

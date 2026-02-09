@@ -19,7 +19,7 @@ export async function connectDB(): Promise<typeof mongoose> {
 
   if (!global.mongooseConn.promise) {
     global.mongooseConn.promise = mongoose.connect(MONGO_URI_STRING, {
-      dbName: "synopseeAI",
+      dbName: "Agento",
     });
   }
 

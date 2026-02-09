@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SynapseeAI",
-  description: "Agentic Market Intelligence & Feasibility Engine",
+  title: "Agento",
+  description: "Agentic RAG Engine for your company documents",
   icons: {
     icon: '/logo.png',
   },

@@ -97,14 +97,14 @@ export default function HomePage() {
           className="text-4xl md:text-5xl font-semibold tracking-tight
           text-slate-900 dark:text-slate-100"
         >
-          Welcome to Synapsee-AI
+          Welcome to Agento
         </h1>
 
         <p
           className="mt-6 text-lg max-w-xl mx-auto
           text-slate-600 dark:text-slate-400"
         >
-          Agentic Market Intelligence & Feasibility Engine
+          Agentic RAG Engine for your company documents
         </p>
 
         {/* LOGO */}
@@ -119,9 +119,9 @@ export default function HomePage() {
 
           <Image
             src="/logo.png"
-            alt="SynapseeAI Logo"
-            width={359}
-            height={204}
+            alt="Agento Logo"
+            width={500}
+            height={304}
             className="relative z-10 opacity-90"
             priority
           />
@@ -132,7 +132,7 @@ export default function HomePage() {
           {session ? (
             <>
               <Button
-                onClick={() => router.push("/analyse")}
+                onClick={() => router.push("/dashboard")}
                 className="
                   h-12 px-10
                   bg-slate-800 text-white

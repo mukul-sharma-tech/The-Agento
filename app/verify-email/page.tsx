@@ -1,91 +1,3 @@
-// 'use client';
-
-// import { useEffect, useState } from 'react';
-// import { useRouter, useSearchParams } from 'next/navigation';
-
-// export default function VerifyEmailPage() {
-//   const router = useRouter();
-//   const searchParams = useSearchParams();
-//   const token = searchParams.get('token');
-
-//   const [status, setStatus] = useState<'loading' | 'success' | 'error'>(token ? 'loading' : 'error');
-//   const [message, setMessage] = useState(token ? '' : 'Invalid verification link');
-
-//   useEffect(() => {
-//     if (!token) return;
-
-//     const verifyEmail = async () => {
-//       try {
-//         const response = await fetch('/api/auth/verify-email', {
-//           method: 'POST',
-//           headers: {
-//             'Content-Type': 'application/json',
-//           },
-//           body: JSON.stringify({ token }),
-//         });
-
-//         const data = await response.json();
-
-//         if (response.ok) {
-//           setStatus('success');
-//           setMessage(data.message);
-//           setTimeout(() => {
-//             router.push('/login');
-//           }, 3000);
-//         } else {
-//           setStatus('error');
-//           setMessage(data.message);
-//         }
-//       } catch (error) {
-//         setStatus('error');
-//         setMessage('Something went wrong. Please try again.');
-//       }
-//     };
-
-//     verifyEmail();
-//   }, [token, router]);
-
-//   return (
-//     <div className="min-h-screen flex items-center justify-center bg-gray-50">
-//       <div className="max-w-md w-full space-y-8">
-//         <div className="text-center">
-//           <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
-//             Email Verification
-//           </h2>
-//           <div className="mt-8">
-//             {status === 'loading' && (
-//               <div className="text-center">
-//                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-//                 <p className="mt-4 text-gray-600">Verifying your email...</p>
-//               </div>
-//             )}
-//             {status === 'success' && (
-//               <div className="text-center">
-//                 <div className="text-green-600 text-6xl">✓</div>
-//                 <p className="mt-4 text-green-600 font-medium">{message}</p>
-//                 <p className="mt-2 text-gray-600">Redirecting to login...</p>
-//               </div>
-//             )}
-//             {status === 'error' && (
-//               <div className="text-center">
-//                 <div className="text-red-600 text-6xl">✕</div>
-//                 <p className="mt-4 text-red-600 font-medium">{message}</p>
-//                 <button
-//                   onClick={() => router.push('/login')}
-//                   className="mt-4 bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
-//                 >
-//                   Go to Login
-//                 </button>
-//               </div>
-//             )}
-//           </div>
-//         </div>
-//       </div>
-//     </div>
-//   );
-// }
-
-
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
@@ -97,11 +9,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { CheckCircle, XCircle, Mail, Loader2 } from "lucide-react";
 
 // Component that uses useSearchParams
 function VerifyEmailContent() {
-  const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
+  const [status, setStatus] = useState<"loading" | "success" | "error" | "already">("loading");
   const [message, setMessage] = useState("");
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -127,6 +39,12 @@ function VerifyEmailContent() {
         if (res.ok) {
           setStatus("success");
           setMessage(data.message || "Email verified successfully!");
+        } else if (data.message && data.message.includes("already verified")) {
+          setStatus("already");
+          setMessage(data.message);
+        } else if (data.message && data.message.includes("new verification email")) {
+          setStatus("already");
+          setMessage(data.message);
         } else {
           setStatus("error");
           setMessage(data.message || "Verification failed");
@@ -173,19 +91,33 @@ function VerifyEmailContent() {
           </>
         )}
         
-        {status === "error" && (
+        {(status === "error" || status === "already") && (
           <>
-            <XCircle className="w-16 h-16 text-red-500" />
-            <p className="text-center text-red-600 dark:text-red-400 font-semibold">
+            {status === "already" ? (
+              <Mail className="w-16 h-16 text-blue-500" />
+            ) : (
+              <XCircle className="w-16 h-16 text-red-500" />
+            )}
+            <p className="text-center text-slate-600 dark:text-slate-400 font-medium">
               {message}
             </p>
-            <Button 
-              onClick={() => router.push("/signup")}
-              variant="outline"
-              className="w-full mt-4"
-            >
-              Back to Signup
-            </Button>
+            {status === "error" && (
+              <Button 
+                onClick={() => router.push("/signup")}
+                variant="outline"
+                className="w-full mt-4"
+              >
+                Back to Signup
+              </Button>
+            )}
+            {status === "already" && (
+              <Button 
+                onClick={() => router.push("/login")}
+                className="w-full mt-4"
+              >
+                Go to Login
+              </Button>
+            )}
           </>
         )}
       </CardContent>

@@ -9,15 +9,17 @@ interface SignupBody {
     name: string;
     email: string;
     password: string;
-    companyName: string;
+    company_id: string;
+    company_name: string;
+    role?: "admin" | "employee";
 }
 
 export async function POST(req: Request) {
     try {
         const body: SignupBody = await req.json();
-        const { name, email, password, companyName } = body;
+        const { name, email, password, company_id, company_name, role } = body;
 
-        if (!name || !email || !password || !companyName) {
+        if (!name || !email || !password || !company_id || !company_name) {
             return NextResponse.json(
                 { message: "All fields are required" },
                 { status: 400 }
@@ -47,7 +49,9 @@ export async function POST(req: Request) {
             name,
             email,
             password: hashedPassword,
-            companyName,
+            company_id,
+            company_name,
+            role: role || "employee",
             emailVerificationToken: hashedVerificationToken,
             emailVerificationExpiry: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
         });
