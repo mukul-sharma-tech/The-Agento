@@ -52,6 +52,8 @@ export async function POST(req: Request) {
             company_id,
             company_name,
             role: role || "employee",
+            // Admins are auto-verified, employees need admin approval
+            accountVerified: role === "admin",
             emailVerificationToken: hashedVerificationToken,
             emailVerificationExpiry: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
         });

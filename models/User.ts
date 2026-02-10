@@ -119,6 +119,11 @@ export interface IUser extends mongoose.Document {
   emailVerificationToken?: string;
   emailVerificationExpiry?: Date;
   
+  // Admin verification for employees
+  accountVerified: boolean; // true for admins, false for employees until approved
+  verifiedBy?: string; // admin user ID who verified
+  verifiedAt?: Date;
+  
   createdAt: Date;
   updatedAt: Date;
 
@@ -154,6 +159,11 @@ const UserSchema = new Schema<IUser>(
     emailVerified: { type: Boolean, default: false },
     emailVerificationToken: { type: String },
     emailVerificationExpiry: { type: Date },
+    
+    // Admin verification for employees
+    accountVerified: { type: Boolean, default: false },
+    verifiedBy: { type: String },
+    verifiedAt: { type: Date },
   },
   {
     timestamps: true,

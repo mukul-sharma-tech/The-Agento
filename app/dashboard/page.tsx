@@ -4,7 +4,8 @@ import { useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Bot, FileText, LogOut, Mic } from "lucide-react";
+import { Bot, FileText, LogOut, Mic, Shield } from "lucide-react";
+import Image from "next/image";
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
@@ -54,6 +55,24 @@ export default function DashboardPage() {
 
       {/* Content */}
       <div className="relative z-10 max-w-2xl w-full text-center">
+            <div className="relative mt-14 mb-8 flex justify-center">
+                  {/* glow behind logo */}
+                  <div className="absolute inset-0 flex justify-center">
+                    <div
+                      className="w-32 h-32 bg-blue-400/30 dark:bg-blue-600/20
+                      rounded-full blur-[60px]"
+                    />
+                  </div>
+        
+                  <Image
+                    src="/logo.png"
+                    alt="Agento Logo"
+                    width={500}
+                    height={304}
+                    className="relative z-10 opacity-90"
+                    priority
+                  />
+                </div>
         <div className="mb-8">
           <h1
             className="text-4xl md:text-5xl font-semibold tracking-tight
@@ -108,22 +127,40 @@ export default function DashboardPage() {
 
           {/* Ingest Document Button - Admin only */}
           {session?.user?.role === "admin" && (
-            <Button
-              onClick={() => router.push("/ingest-doc")}
-              className="
-                h-12 px-10
-                bg-slate-800 text-white
-                dark:bg-slate-700/60 dark:text-slate-100
-                border border-black/10 dark:border-white/10
-                hover:bg-slate-700 dark:hover:bg-slate-700
-                transition-all duration-200
-                hover:-translate-y-[1px]
-                hover:shadow-[0_12px_35px_rgba(59,130,246,0.35)]
-              "
-            >
-              <FileText className="w-5 h-5 mr-2" />
-              Ingest Document
-            </Button>
+            <>
+              <Button
+                onClick={() => router.push("/admin")}
+                className="
+                  h-12 px-10
+                  bg-gradient-to-r from-green-600 to-emerald-600 text-white
+                  border-0
+                  hover:from-green-700 hover:to-emerald-700
+                  transition-all duration-200
+                  hover:-translate-y-[1px]
+                  hover:shadow-[0_12px_35px_rgba(34,197,94,0.4)]
+                "
+              >
+                <Shield className="w-5 h-5 mr-2" />
+                Admin Panel
+              </Button>
+
+              <Button
+                onClick={() => router.push("/ingest-doc")}
+                className="
+                  h-12 px-10
+                  bg-slate-800 text-white
+                  dark:bg-slate-700/60 dark:text-slate-100
+                  border border-black/10 dark:border-white/10
+                  hover:bg-slate-700 dark:hover:bg-slate-700
+                  transition-all duration-200
+                  hover:-translate-y-[1px]
+                  hover:shadow-[0_12px_35px_rgba(59,130,246,0.35)]
+                "
+              >
+                <FileText className="w-5 h-5 mr-2" />
+                Ingest Document
+              </Button>
+            </>
           )}
 
           {/* Logout Button */}

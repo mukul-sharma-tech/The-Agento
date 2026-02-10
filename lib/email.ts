@@ -13,7 +13,7 @@ const transporter = nodemailer.createTransport({
 export const sendEmail = async (to: string, subject: string, html: string) => {
   try {
     const info = await transporter.sendMail({
-      from: `"Synopsee" <${process.env.EMAIL_FROM}>`,
+      from: `"Agento" <${process.env.EMAIL_FROM}>`,
       to,
       subject,
       html,
@@ -30,7 +30,7 @@ export const sendVerificationEmail = async (email: string, token: string) => {
   const verificationUrl = `${process.env.NEXTAUTH_URL}/verify-email?token=${token}`;
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2>Welcome to Synopsee!</h2>
+      <h2>Welcome to Agento!</h2>
       <p>Please verify your email address by clicking the button below:</p>
       <a href="${verificationUrl}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Verify Email</a>
       <p>If the button doesn't work, copy and paste this link into your browser:</p>
@@ -38,7 +38,7 @@ export const sendVerificationEmail = async (email: string, token: string) => {
       <p>This link will expire in 24 hours.</p>
     </div>
   `;
-  return sendEmail(email, 'Verify Your Email - Synopsee', html);
+  return sendEmail(email, 'Verify Your Email - Agento', html);
 };
 
 export const sendPasswordResetEmail = async (email: string, token: string) => {

@@ -15,6 +15,7 @@ declare module "next-auth" {
     company_id: string;
     company_name: string;
     role: "admin" | "employee";
+    accountVerified: boolean;
   }
 
   interface Session {
@@ -23,6 +24,7 @@ declare module "next-auth" {
       company_id: string;
       company_name: string;
       role: "admin" | "employee";
+      accountVerified: boolean;
     } & DefaultSession["user"];
   }
 }
@@ -33,6 +35,7 @@ declare module "next-auth/jwt" {
     company_id: string;
     company_name: string;
     role: "admin" | "employee";
+    accountVerified: boolean;
   }
 }
 

@@ -30,6 +30,11 @@ export const authOptions: NextAuthOptions = {
                     throw new Error("Please verify your email before logging in");
                 }
 
+                // Check if employee account is verified by admin
+                if (user.role === "employee" && !user.accountVerified) {
+                    throw new Error("Your account is pending verification by your company admin. Please contact your admin.");
+                }
+
                 const isValid = await bcrypt.compare(
                     credentials.password,
                     user.password
@@ -46,6 +51,7 @@ export const authOptions: NextAuthOptions = {
                     company_id: user.company_id,
                     company_name: user.company_name,
                     role: user.role,
+                    accountVerified: user.accountVerified,
                 };
             },
         }),
@@ -63,6 +69,7 @@ export const authOptions: NextAuthOptions = {
                 token.company_id = user.company_id;
                 token.company_name = user.company_name;
                 token.role = user.role;
+                token.accountVerified = user.accountVerified;
             }
             return token;
         },
@@ -73,6 +80,7 @@ export const authOptions: NextAuthOptions = {
                 session.user.company_id = token.company_id;
                 session.user.company_name = token.company_name;
                 session.user.role = token.role;
+                session.user.accountVerified = token.accountVerified;
             }
             return session;
         },
