@@ -678,12 +678,6 @@ If you discover a security vulnerability, please email security@yourdomain.com. 
 
 ---
 
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
 ## Acknowledgments
 
 - Next.js team for the amazing framework
