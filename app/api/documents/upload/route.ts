@@ -4,6 +4,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectDB } from "@/lib/db";
 import Document from "@/models/Document";
 import VectorChunk from "@/models/VectorChunk";
+import { extractText, getDocumentProxy } from "unpdf";
 
 const CATEGORIES = [
   "HR",
@@ -88,16 +89,14 @@ async function getEmbedding(text: string): Promise<number[]> {
 
 async function getFileText(file: File): Promise<string> {
   const name = file.name.toLowerCase();
-  
-  if (name.endsWith(".txt") || name.endsWith(".md") || name.endsWith(".csv") || name.endsWith(".json")) {
-    return await file.text();
-  }
-  
+
   if (name.endsWith(".pdf")) {
-    const txt = await file.text();
-    return cleanText(txt);
+    const buffer = new Uint8Array(await file.arrayBuffer());
+    const pdf = await getDocumentProxy(buffer);
+    const { text } = await extractText(pdf, { mergePages: true });
+    return Array.isArray(text) ? text.join(" ") : text;
   }
-  
+
   return await file.text();
 }
 
@@ -147,7 +146,7 @@ export async function POST(req: Request) {
 
     if (!cleaned.trim() || cleaned.length < 50) {
       return NextResponse.json({ 
-        message: "Could not extract readable text. Please convert PDF to text file first." 
+        message: "Could not extract readable text from this file." 
       }, { status: 400 });
     }
 

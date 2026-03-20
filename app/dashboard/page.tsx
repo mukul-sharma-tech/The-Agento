@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Bot, FileText, LogOut, Mic, Shield } from "lucide-react";
+import { Bot, FileText, LogOut, Mic, Shield, Zap } from "lucide-react";
 import Image from "next/image";
 
 export default function DashboardPage() {
@@ -162,6 +162,23 @@ export default function DashboardPage() {
               </Button>
             </>
           )}
+
+          {/* Query Genius Button - Visible to all */}
+          <Button
+            onClick={() => router.push("/query-genius")}
+            className="
+              h-12 px-10
+              bg-gradient-to-r from-indigo-600 to-violet-600 text-white
+              border-0
+              hover:from-indigo-700 hover:to-violet-700
+              transition-all duration-200
+              hover:-translate-y-[1px]
+              hover:shadow-[0_12px_35px_rgba(99,102,241,0.4)]
+            "
+          >
+            <Zap className="w-5 h-5 mr-2" />
+            Query Genius
+          </Button>
 
           {/* Logout Button */}
           <Button
