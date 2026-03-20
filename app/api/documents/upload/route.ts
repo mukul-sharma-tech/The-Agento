@@ -5,6 +5,7 @@ import { connectDB } from "@/lib/db";
 import Document from "@/models/Document";
 import VectorChunk from "@/models/VectorChunk";
 import { extractText, getDocumentProxy } from "unpdf";
+import { getEmbedding } from "@/lib/llm";
 
 const CATEGORIES = [
   "HR",
@@ -67,25 +68,6 @@ function chunkText(text: string, size = 1000, overlap = 200): string[] {
   return chunks;
 }
 
-async function getEmbedding(text: string): Promise<number[]> {
-  const url = process.env.OLLAMA_URL || "http://localhost:11434";
-  const model = process.env.OLLAMA_EMBEDDING_MODEL || "nomic-embed-text";
-  
-  try {
-    const res = await fetch(`${url}/api/embeddings`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model, prompt: text }),
-    });
-
-    if (!res.ok) throw new Error(`Embed error: ${res.status}`);
-    const data = await res.json();
-    return data.embedding || [];
-  } catch (e) {
-    console.error("Embed error:", e);
-    throw e;
-  }
-}
 
 async function getFileText(file: File): Promise<string> {
   const name = file.name.toLowerCase();

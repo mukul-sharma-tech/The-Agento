@@ -4,19 +4,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectDB } from "@/lib/db";
 import mongoose from "mongoose";
 import { inferSchema } from "@/app/api/query-genius/schema/route";
-
-async function callOllama(prompt: string): Promise<string> {
-  const ollamaUrl = process.env.OLLAMA_URL || "http://localhost:11434";
-  const model = process.env.OLLAMA_MODEL || "gpt-oss:120b-cloud";
-  const response = await fetch(`${ollamaUrl}/api/generate`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model, prompt, stream: false, options: { temperature: 0.1 } }),
-  });
-  if (!response.ok) throw new Error(`Ollama error: ${response.status}`);
-  const data = await response.json();
-  return data.response || "";
-}
+import { callLLM } from "@/lib/llm";
 
 function sanitizeDocs(results: Record<string, unknown>[]) {
   return results.map((doc) => {
@@ -88,7 +76,7 @@ RULES:
 
 RESPONSE (JSON array only):`;
 
-      const raw = (await callOllama(prompt)).trim().replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+      const raw = (await callLLM(prompt)).trim().replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
       const match = raw.match(/\[[\s\S]*\]/);
       if (!match) return NextResponse.json({ message: "Could not generate a valid query", operation, results: [] });
 
@@ -202,7 +190,7 @@ EXAMPLE: {"filter": {"status": "active"}, "update": {"$set": {"status": "inactiv
 
 RESPONSE (JSON object only):`;
 
-      const raw = (await callOllama(prompt)).trim().replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+      const raw = (await callLLM(prompt)).trim().replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
       const match = raw.match(/\{[\s\S]*\}/);
       if (!match) return NextResponse.json({ message: "Could not generate update operation", operation, results: [] });
 
@@ -270,7 +258,7 @@ CRITICAL RULES:
 
 RESPONSE (JSON object only):`;
 
-      const raw = (await callOllama(prompt)).trim().replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+      const raw = (await callLLM(prompt)).trim().replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
       const match = raw.match(/\{[\s\S]*\}/);
       if (!match) return NextResponse.json({ message: "Could not generate delete filter", operation, results: [] });
 

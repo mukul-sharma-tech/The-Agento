@@ -11,9 +11,14 @@ import {
   ArrowLeft, Upload, Database, Search, Trash2, Loader2,
   Table, ChevronDown, ChevronUp, FileSpreadsheet, Zap,
   CheckCircle, PlusCircle, RefreshCw, AlertCircle, Settings,
-  HardDriveUpload, Cpu,
+  HardDriveUpload, Cpu, BarChart2, Microscope, TrendingUp, Lightbulb,
 } from "lucide-react";
 import Image from "next/image";
+import {
+  ResponsiveContainer, BarChart, Bar, LineChart, Line, AreaChart, Area,
+  PieChart, Pie, Cell, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid,
+  Tooltip, Legend,
+} from "recharts";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Collection { name: string; count: number; fields: string[] }
@@ -31,6 +36,11 @@ interface QueryResult {
   matchedCount?: number; modifiedCount?: number; deletedCount?: number;
   validationErrors?: string[];
 }
+interface AnalyticsResult {
+  type: string; pipeline?: object[];
+  results: Record<string, unknown>[]; insight: string; count: number;
+  chartType?: string;
+}
 interface SchemaFieldDef {
   name: string; type: "string" | "number" | "boolean";
   primaryKey: boolean; unique: boolean; nullable: boolean;
@@ -38,7 +48,8 @@ interface SchemaFieldDef {
 }
 
 type Tab = "read" | "insert" | "update" | "delete";
-type SidebarMode = "ingest" | "work";
+type AnalyticsTab = "descriptive" | "diagnostic" | "predictive" | "prescriptive";
+type SidebarMode = "ingest" | "work" | "analytics";
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "read",   label: "Read",   icon: <Search className="w-3.5 h-3.5" /> },
@@ -46,6 +57,162 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "update", label: "Update", icon: <RefreshCw className="w-3.5 h-3.5" /> },
   { id: "delete", label: "Delete", icon: <Trash2 className="w-3.5 h-3.5" /> },
 ];
+
+const ANALYTICS_TABS: { id: AnalyticsTab; label: string; question: string; color: string; icon: React.ReactNode; placeholder: string }[] = [
+  { id: "descriptive",  label: "Descriptive",  question: "What happened?",     color: "blue",   icon: <BarChart2 className="w-3.5 h-3.5" />,  placeholder: 'e.g. "Summarize sales by region"' },
+  { id: "diagnostic",   label: "Diagnostic",   question: "Why did it happen?", color: "purple", icon: <Microscope className="w-3.5 h-3.5" />, placeholder: 'e.g. "Why did revenue drop last month?"' },
+  { id: "predictive",   label: "Predictive",   question: "What might happen?", color: "amber",  icon: <TrendingUp className="w-3.5 h-3.5" />, placeholder: 'e.g. "Forecast next quarter performance"' },
+  { id: "prescriptive", label: "Prescriptive", question: "What should we do?", color: "green",  icon: <Lightbulb className="w-3.5 h-3.5" />,  placeholder: 'e.g. "What actions to improve sales?"' },
+];
+
+// ── AnalyticsChart ────────────────────────────────────────────────────────────
+const CHART_COLORS = ["#6366f1","#3b82f6","#10b981","#f59e0b","#ef4444","#8b5cf6","#06b6d4","#f97316"];
+
+const TOOLTIP_STYLE = {
+  background: "rgba(255,255,255,0.95)",
+  border: "1px solid #e2e8f0",
+  borderRadius: 8,
+  color: "#1e293b",
+  fontSize: 12,
+};
+const AXIS_TICK = { fill: "#64748b", fontSize: 11 };
+const GRID_COLOR = "#e2e8f0";
+
+function flattenDoc(doc: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(doc)) {
+    if (v === null || v === undefined) { out[k] = null; continue; }
+    if (Array.isArray(v)) { out[k] = v.length; continue; } // array → count
+    if (typeof v === "object") {
+      // nested object → try common keys, else stringify label
+      const obj = v as Record<string, unknown>;
+      if ("count" in obj) { out[k] = Number(obj.count); continue; }
+      if ("total" in obj) { out[k] = Number(obj.total); continue; }
+      if ("avg" in obj)   { out[k] = Number(obj.avg);   continue; }
+      // $bucket _id range like { min: 0, max: 10 }
+      const vals = Object.values(obj);
+      if (vals.length === 2 && vals.every(x => typeof x === "number")) {
+        out[k] = `${vals[0]}-${vals[1]}`; continue;
+      }
+      out[k] = JSON.stringify(v); // last resort
+    } else {
+      out[k] = v;
+    }
+  }
+  return out;
+}
+
+function AnalyticsChart({ data, chartType }: { data: Record<string, unknown>[]; chartType: string }) {
+  if (!data.length) return null;
+
+  // Flatten nested objects first
+  const flat = data.map(flattenDoc);
+
+  const keys = Object.keys(flat[0]);
+  // Label key: prefer "label" (from _id unwrap), then first string that isn't purely numeric
+  const labelKey =
+    keys.includes("label") ? "label" :
+    keys.find(k => typeof flat[0][k] === "string" && isNaN(Number(flat[0][k]))) ||
+    keys[0];
+  // Value keys: numeric, excluding label
+  const valueKeys = keys.filter(k => k !== labelKey && flat[0][k] !== null && !isNaN(Number(flat[0][k])));
+  const finalValueKeys = valueKeys.length > 0 ? valueKeys : keys.filter(k => k !== labelKey);
+
+  const formatted = flat.map(row => {
+    const out: Record<string, unknown> = { name: String(row[labelKey] ?? "") };
+    finalValueKeys.forEach(k => { out[k] = isNaN(Number(row[k])) ? 0 : Number(row[k]); });
+    return out;
+  });
+
+  if (!finalValueKeys.length) return null;
+
+  // Line/area charts need ≥2 points to be meaningful
+  const effectiveChartType =
+    (chartType === "line" || chartType === "area") && formatted.length < 2 ? "bar" : chartType;
+  const insufficientNote = effectiveChartType !== chartType
+    ? `(switched to bar — line/area needs ≥2 data points, got ${formatted.length})`
+    : null;
+
+  const commonProps = { data: formatted, margin: { top: 10, right: 20, left: 0, bottom: 50 } };
+
+  if (effectiveChartType === "pie") {
+    const pieData = formatted.map((d, i) => ({ name: d.name as string, value: d[finalValueKeys[0]] as number, fill: CHART_COLORS[i % CHART_COLORS.length] }));
+    return (
+      <>
+        {insufficientNote && <p className="text-xs text-amber-600 dark:text-amber-400 mb-2 italic">{insufficientNote}</p>}
+        <ResponsiveContainer width="100%" height={300}>
+          <PieChart>
+            <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={110}
+              label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`} labelLine={{ stroke: "#94a3b8" }}>
+              {pieData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
+            </Pie>
+            <Tooltip formatter={(v) => Number(v).toLocaleString()} contentStyle={TOOLTIP_STYLE} />
+            <Legend wrapperStyle={{ color: "#64748b", fontSize: 12 }} />
+          </PieChart>
+        </ResponsiveContainer>
+      </>
+    );
+  }
+
+  if (effectiveChartType === "line") {
+    return (
+      <>
+        {insufficientNote && <p className="text-xs text-amber-600 dark:text-amber-400 mb-2 italic">{insufficientNote}</p>}
+        <ResponsiveContainer width="100%" height={300}>
+          <LineChart {...commonProps}>
+            <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />
+            <XAxis dataKey="name" tick={AXIS_TICK} axisLine={{ stroke: "#cbd5e1" }} tickLine={false} angle={-30} textAnchor="end" />
+            <YAxis tick={AXIS_TICK} axisLine={{ stroke: "#cbd5e1" }} tickLine={false} />
+            <Tooltip contentStyle={TOOLTIP_STYLE} />
+            <Legend wrapperStyle={{ color: "#64748b", fontSize: 12 }} />
+            {finalValueKeys.map((k, i) => <Line key={k} type="monotone" dataKey={k} stroke={CHART_COLORS[i % CHART_COLORS.length]} strokeWidth={2} dot={{ r: 3, fill: CHART_COLORS[i % CHART_COLORS.length] }} />)}
+          </LineChart>
+        </ResponsiveContainer>
+      </>
+    );
+  }
+
+  if (effectiveChartType === "area") {
+    return (
+      <>
+        {insufficientNote && <p className="text-xs text-amber-600 dark:text-amber-400 mb-2 italic">{insufficientNote}</p>}
+        <ResponsiveContainer width="100%" height={300}>
+          <AreaChart {...commonProps}>
+            <defs>{finalValueKeys.map((k, i) => (
+              <linearGradient key={k} id={`grad${i}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={CHART_COLORS[i % CHART_COLORS.length]} stopOpacity={0.25} />
+                <stop offset="95%" stopColor={CHART_COLORS[i % CHART_COLORS.length]} stopOpacity={0} />
+              </linearGradient>
+            ))}</defs>
+            <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />
+            <XAxis dataKey="name" tick={AXIS_TICK} axisLine={{ stroke: "#cbd5e1" }} tickLine={false} angle={-30} textAnchor="end" />
+            <YAxis tick={AXIS_TICK} axisLine={{ stroke: "#cbd5e1" }} tickLine={false} />
+            <Tooltip contentStyle={TOOLTIP_STYLE} />
+            <Legend wrapperStyle={{ color: "#64748b", fontSize: 12 }} />
+            {finalValueKeys.map((k, i) => <Area key={k} type="monotone" dataKey={k} stroke={CHART_COLORS[i % CHART_COLORS.length]} fill={`url(#grad${i})`} strokeWidth={2} />)}
+          </AreaChart>
+        </ResponsiveContainer>
+      </>
+    );
+  }
+
+  // default: bar
+  return (
+    <>
+      {insufficientNote && <p className="text-xs text-amber-600 dark:text-amber-400 mb-2 italic">{insufficientNote}</p>}
+      <ResponsiveContainer width="100%" height={300}>
+        <BarChart {...commonProps}>
+          <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+          <XAxis dataKey="name" tick={AXIS_TICK} axisLine={{ stroke: "#cbd5e1" }} tickLine={false} angle={-30} textAnchor="end" />
+          <YAxis tick={AXIS_TICK} axisLine={{ stroke: "#cbd5e1" }} tickLine={false} />
+          <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: "rgba(99,102,241,0.06)" }} />
+          <Legend wrapperStyle={{ color: "#64748b", fontSize: 12 }} />
+          {finalValueKeys.map((k, i) => <Bar key={k} dataKey={k} fill={CHART_COLORS[i % CHART_COLORS.length]} radius={[4, 4, 0, 0]} />)}
+        </BarChart>
+      </ResponsiveContainer>
+    </>
+  );
+}
 
 // ── InsertTab (append rows to existing collection) ────────────────────────────
 function InsertTab({ collectionName, schema, schemaLoading, onSuccess }: {
@@ -291,6 +458,14 @@ export default function QueryGeniusPage() {
 
   const [deletingCol, setDeletingCol] = useState<string | null>(null);
 
+  // Analytics state
+  const [analyticsTab, setAnalyticsTab] = useState<AnalyticsTab>("descriptive");
+  const [analyticsQuery, setAnalyticsQuery] = useState("");
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [analyticsResult, setAnalyticsResult] = useState<AnalyticsResult | null>(null);
+  const [analyticsError, setAnalyticsError] = useState("");
+  const [showAnalyticsPipeline, setShowAnalyticsPipeline] = useState(false);
+
   useEffect(() => { if (status === "unauthenticated") router.push("/login"); }, [status, router]);
 
   const fetchCollections = useCallback(async () => {
@@ -377,8 +552,22 @@ export default function QueryGeniusPage() {
     finally { setQuerying(false); }
   };
 
-  const handleDeleteCollection = async (name: string) => {
-    if (!confirm(`Delete collection "${name}"?`)) return;
+  const submitAnalytics = async () => {
+    if (!analyticsQuery.trim() || !selectedCollection) return;
+    setAnalyticsLoading(true); setAnalyticsError(""); setAnalyticsResult(null); setShowAnalyticsPipeline(false);
+    try {
+      const res = await fetch("/api/query-genius/analytics", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: analyticsTab, collectionName: selectedCollection, query: analyticsQuery }),
+      });
+      const d = await res.json();
+      if (res.ok) setAnalyticsResult(d);
+      else setAnalyticsError(d.message || "Analytics failed");
+    } catch { setAnalyticsError("Something went wrong"); }
+    finally { setAnalyticsLoading(false); }
+  };
+
+  const handleDeleteCollection = async (name: string) => {    if (!confirm(`Delete collection "${name}"?`)) return;
     setDeletingCol(name);
     try {
       const res = await fetch(`/api/query-genius/data?collection=${name}`, { method: "DELETE" });
@@ -424,20 +613,29 @@ export default function QueryGeniusPage() {
 
           {/* Mode toggle */}
           <div className="p-3 border-b border-slate-200/60 dark:border-slate-700/60">
-            <div className="flex rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100/80 dark:bg-slate-800/60 p-1 gap-1">
+            <div className="flex flex-col gap-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100/80 dark:bg-slate-800/60 p-1">
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setSidebarMode("ingest")}
+                  className={`flex-1 flex flex-col items-center gap-1 py-2 px-2 rounded-lg text-xs font-semibold transition-all ${sidebarMode === "ingest" ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"}`}
+                >
+                  <HardDriveUpload className="w-4 h-4" />
+                  <span>Data Ingestion</span>
+                </button>
+                <button
+                  onClick={() => setSidebarMode("work")}
+                  className={`flex-1 flex flex-col items-center gap-1 py-2 px-2 rounded-lg text-xs font-semibold transition-all ${sidebarMode === "work" ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"}`}
+                >
+                  <Cpu className="w-4 h-4" />
+                  <span>Work on Data</span>
+                </button>
+              </div>
               <button
-                onClick={() => setSidebarMode("ingest")}
-                className={`flex-1 flex flex-col items-center gap-1 py-2.5 px-2 rounded-lg text-xs font-semibold transition-all ${sidebarMode === "ingest" ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"}`}
+                onClick={() => setSidebarMode("analytics")}
+                className={`w-full flex items-center justify-center gap-2 py-2 px-2 rounded-lg text-xs font-semibold transition-all ${sidebarMode === "analytics" ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"}`}
               >
-                <HardDriveUpload className="w-4 h-4" />
-                <span>Data Ingestion</span>
-              </button>
-              <button
-                onClick={() => setSidebarMode("work")}
-                className={`flex-1 flex flex-col items-center gap-1 py-2.5 px-2 rounded-lg text-xs font-semibold transition-all ${sidebarMode === "work" ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"}`}
-              >
-                <Cpu className="w-4 h-4" />
-                <span>Work on Data</span>
+                <BarChart2 className="w-4 h-4" />
+                <span>Analytics</span>
               </button>
             </div>
           </div>
@@ -711,8 +909,144 @@ export default function QueryGeniusPage() {
               )}
             </>
           )}
+          {/* ════ ANALYTICS VIEW ════ */}
+          {sidebarMode === "analytics" && (
+            <>
+              {!selectedCollection ? (
+                <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-center">
+                  <BarChart2 className="w-14 h-14 text-slate-300 dark:text-slate-600 mb-4" />
+                  <p className="text-slate-500 dark:text-slate-400 text-lg font-medium">Select a collection to analyse</p>
+                  <p className="text-slate-400 dark:text-slate-500 text-sm mt-1">Choose from the sidebar, then pick an analytics type.</p>
+                </div>
+              ) : (
+                <>
+                  {/* Analytics type cards */}
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-2">
+                    {ANALYTICS_TABS.map(t => (
+                      <button key={t.id} onClick={() => { setAnalyticsTab(t.id); setAnalyticsResult(null); setAnalyticsError(""); }}
+                        className={`flex flex-col items-start gap-2 p-4 rounded-xl border-2 text-left transition-all ${analyticsTab === t.id
+                          ? t.color === "blue"   ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
+                          : t.color === "purple" ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20"
+                          : t.color === "amber"  ? "border-amber-500 bg-amber-50 dark:bg-amber-900/20"
+                          :                        "border-green-500 bg-green-50 dark:bg-green-900/20"
+                          : "border-slate-200 dark:border-slate-700 bg-white/60 dark:bg-white/5 hover:border-slate-300 dark:hover:border-slate-600"}`}>
+                        <div className={`p-2 rounded-lg ${analyticsTab === t.id
+                          ? t.color === "blue"   ? "bg-blue-100 dark:bg-blue-800/40 text-blue-600 dark:text-blue-400"
+                          : t.color === "purple" ? "bg-purple-100 dark:bg-purple-800/40 text-purple-600 dark:text-purple-400"
+                          : t.color === "amber"  ? "bg-amber-100 dark:bg-amber-800/40 text-amber-600 dark:text-amber-400"
+                          :                        "bg-green-100 dark:bg-green-800/40 text-green-600 dark:text-green-400"
+                          : "bg-slate-100 dark:bg-slate-800 text-slate-500"}`}>
+                          {t.icon}
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{t.label}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 italic">{t.question}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Query input */}
+                  <Card className="bg-white/70 dark:bg-white/5 backdrop-blur-xl border border-black/10 dark:border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.2)]">
+                    <CardContent className="pt-5">
+                      {(() => {
+                        const t = ANALYTICS_TABS.find(x => x.id === analyticsTab)!;
+                        return (
+                          <form onSubmit={e => { e.preventDefault(); submitAnalytics(); }} className="space-y-3">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className={`p-1.5 rounded-lg ${t.color === "blue" ? "bg-blue-100 dark:bg-blue-800/40 text-blue-600 dark:text-blue-400" : t.color === "purple" ? "bg-purple-100 dark:bg-purple-800/40 text-purple-600 dark:text-purple-400" : t.color === "amber" ? "bg-amber-100 dark:bg-amber-800/40 text-amber-600 dark:text-amber-400" : "bg-green-100 dark:bg-green-800/40 text-green-600 dark:text-green-400"}`}>{t.icon}</span>
+                              <Label className="text-slate-700 dark:text-slate-300 font-semibold">{t.label} Analytics <span className="font-normal text-slate-400">— {t.question}</span></Label>
+                            </div>
+                            <div className="flex gap-2">
+                              <Input placeholder={t.placeholder} value={analyticsQuery} onChange={e => setAnalyticsQuery(e.target.value)} disabled={analyticsLoading}
+                                className="flex-1 bg-white/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700" />
+                              <Button type="submit" disabled={analyticsLoading || !analyticsQuery.trim()}
+                                className={`h-10 px-5 text-white border-0 disabled:opacity-50 ${t.color === "blue" ? "bg-blue-600 hover:bg-blue-700" : t.color === "purple" ? "bg-purple-600 hover:bg-purple-700" : t.color === "amber" ? "bg-amber-600 hover:bg-amber-700" : "bg-green-600 hover:bg-green-700"}`}>
+                                {analyticsLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                              </Button>
+                            </div>
+                          </form>
+                        );
+                      })()}
+                    </CardContent>
+                  </Card>
+
+                  {analyticsError && (
+                    <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm border border-red-200 dark:border-red-800">
+                      <AlertCircle className="w-4 h-4 flex-shrink-0" />{analyticsError}
+                    </div>
+                  )}
+
+                  {analyticsResult && (
+                    <Card className="bg-white/70 dark:bg-white/5 backdrop-blur-xl border border-black/10 dark:border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.2)]">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="flex items-center gap-2 text-base capitalize">
+                            {ANALYTICS_TABS.find(t => t.id === analyticsResult.type)?.icon}
+                            {analyticsResult.type} Analysis
+                            {analyticsResult.count > 0 && <span className="text-xs font-normal text-slate-500">({analyticsResult.count} rows)</span>}
+                          </CardTitle>
+                          {analyticsResult.pipeline && analyticsResult.pipeline.length > 0 && (
+                            <button onClick={() => setShowAnalyticsPipeline(p => !p)} className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 transition-colors">
+                              {showAnalyticsPipeline ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />} Pipeline
+                            </button>
+                          )}
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {showAnalyticsPipeline && analyticsResult.pipeline && (
+                          <pre className="text-xs bg-slate-900 text-green-400 rounded-lg p-4 overflow-x-auto max-h-48">{JSON.stringify(analyticsResult.pipeline, null, 2)}</pre>
+                        )}
+
+                        {/* AI Insight */}
+                        <div className="px-4 py-4 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800">
+                          <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                            <Lightbulb className="w-3.5 h-3.5" /> AI Insight
+                          </p>
+                          <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">{analyticsResult.insight}</p>
+                        </div>
+
+                        {/* Chart */}
+                        {analyticsResult.results.length > 0 && analyticsResult.chartType !== "none" && (
+                          <div className="rounded-xl bg-white/60 dark:bg-white/5 border border-slate-200/60 dark:border-slate-700/60 p-4">
+                            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3 capitalize">
+                              {analyticsResult.chartType || "bar"} chart
+                            </p>
+                            <AnalyticsChart data={analyticsResult.results} chartType={analyticsResult.chartType || "bar"} />
+                          </div>
+                        )}
+
+                        {/* Data table */}
+                        {analyticsResult.results.length > 0 && (
+                          <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
+                            <table className="min-w-full text-sm">
+                              <thead><tr className="bg-slate-100 dark:bg-slate-800">
+                                {Object.keys(analyticsResult.results[0]).map(c => (
+                                  <th key={c} className="px-3 py-2 text-left text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wide whitespace-nowrap border-b border-slate-200 dark:border-slate-700">{c}</th>
+                                ))}
+                              </tr></thead>
+                              <tbody>{analyticsResult.results.map((row, i) => (
+                                <tr key={i} className={i % 2 === 0 ? "bg-white dark:bg-slate-900/50" : "bg-slate-50/50 dark:bg-slate-800/30"}>
+                                  {Object.keys(analyticsResult.results[0]).map(c => (
+                                    <td key={c} className="px-3 py-2 text-slate-700 dark:text-slate-300 whitespace-nowrap border-b border-slate-100 dark:border-slate-800">
+                                      {row[c] == null ? <span className="text-slate-400 italic">null</span> : typeof row[c] === "object" ? <span className="text-xs font-mono text-slate-500">{JSON.stringify(row[c])}</span> : String(row[c])}
+                                    </td>
+                                  ))}
+                                </tr>
+                              ))}</tbody>
+                            </table>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
+                </>
+              )}
+            </>
+          )}
         </div>
       </div>
     </main>
   );
 }
+

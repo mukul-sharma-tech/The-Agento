@@ -3,35 +3,9 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectDB } from "@/lib/db";
 import VectorChunk from "@/models/VectorChunk";
+import { callLLM, getEmbedding } from "@/lib/llm";
 
-// Generate embedding using Ollama embeddings API
-async function generateEmbedding(text: string): Promise<number[]> {
-  const ollamaUrl = process.env.OLLAMA_URL || "http://localhost:11434";
-  const embeddingModel = process.env.OLLAMA_EMBEDDING_MODEL || "nomic-embed-text:latest";
-  
-  try {
-    const response = await fetch(`${ollamaUrl}/api/embeddings`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: embeddingModel,
-        prompt: text,
-      }),
-    });
 
-    if (!response.ok) {
-      throw new Error(`Ollama embeddings API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.embedding || [];
-  } catch (error) {
-    console.error("Embedding generation error:", error);
-    throw error;
-  }
-}
-
-// Cosine similarity function
 function cosineSimilarity(a: number[], b: number[]): number {
   if (!a.length || !b.length) return 0;
   
@@ -49,36 +23,6 @@ function cosineSimilarity(a: number[], b: number[]): number {
   return denominator === 0 ? 0 : dotProduct / denominator;
 }
 
-// Call Ollama model for chat completion
-async function callOllama(model: string, prompt: string): Promise<string> {
-  const ollamaUrl = process.env.OLLAMA_URL || "http://localhost:11434";
-  
-  try {
-    const response = await fetch(`${ollamaUrl}/api/generate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model,
-        prompt,
-        stream: false,
-        options: {
-          temperature: 0.1,
-          top_p: 0.9,
-        },
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Ollama API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.response || "No response from model";
-  } catch (error) {
-    console.error("Ollama API error:", error);
-    throw error;
-  }
-}
 
 // Check if the query is about a process or flow that needs a flowchart
 function needsFlowchart(query: string): boolean {
@@ -125,10 +69,7 @@ graph TD
 If not a clear process, output exactly: NO_FLOWCHART_NEEDED`;
 
   try {
-    const mermaidResponse = await callOllama(
-      process.env.OLLAMA_MODEL || "gpt-oss:120b-cloud",
-      flowchartPrompt
-    );
+    const mermaidResponse = await callLLM(flowchartPrompt);
 
     console.log("Mermaid response:", mermaidResponse);
 
@@ -213,7 +154,7 @@ export async function POST(req: Request) {
     let relevantChunks: string[] = [];
     
     try {
-      queryEmbedding = await generateEmbedding(message);
+      queryEmbedding = await getEmbedding(message);
       console.log(`Generated embedding with ${queryEmbedding.length} dimensions`);
     } catch (embedError) {
       console.warn("Embedding generation failed, using text search fallback");
@@ -291,9 +232,8 @@ Answer the user's question based on the context above. If the question is about 
       ? `${systemPrompt}\n\nCONVERSATION:\n${conversationHistory}\n\nUser: ${message}`
       : `${systemPrompt}\n\nUser: ${message}`;
 
-    // Call Ollama model
-    const ollamaModel = process.env.OLLAMA_MODEL || "gpt-oss:120b-cloud";
-    let response = await callOllama(ollamaModel, fullPrompt);
+    // Call LLM (Ollama → Groq fallback chain)
+    let response = await callLLM(fullPrompt);
 
     // Truncate long responses in voice mode
     if (isVoiceMode && response.length > 500) {
