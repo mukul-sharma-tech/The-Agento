@@ -81,25 +81,54 @@ export async function callLLM(prompt: string, timeoutMs = 60000): Promise<string
 // ── Public: getEmbedding ──────────────────────────────────────────────────────
 
 /**
- * Generate embeddings via Ollama. Returns [] if unavailable (caller handles gracefully).
+ * Generate embeddings.
+ * Local:  Ollama (nomic-embed-text)       → 768-dim
+ * Cloud:  HuggingFace (all-MiniLM-L6-v2) → 384-dim
+ *
+ * Returns { embedding, model } so callers can store the model name
+ * alongside the vector and filter by it at query time.
+ * Returns { embedding: [], model: "" } if both providers fail.
  */
-export async function getEmbedding(text: string): Promise<number[]> {
-  const url = process.env.OLLAMA_URL || "http://localhost:11434";
-  const model = process.env.OLLAMA_EMBEDDING_MODEL || "nomic-embed-text";
+export async function getEmbedding(text: string): Promise<{ embedding: number[]; model: string }> {
+  // ── Try Ollama first ──────────────────────────────────────────────────────
+  const ollamaUrl = process.env.OLLAMA_URL || "http://localhost:11434";
+  const ollamaModel = process.env.OLLAMA_EMBEDDING_MODEL || "nomic-embed-text";
 
   try {
-    const res = await fetch(`${url}/api/embeddings`, {
+    const res = await fetch(`${ollamaUrl}/api/embeddings`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model, prompt: text }),
+      body: JSON.stringify({ model: ollamaModel, prompt: text }),
       signal: AbortSignal.timeout(10000),
     });
-
-    if (!res.ok) throw new Error(`Embed error: ${res.status}`);
+    if (!res.ok) throw new Error(`Ollama embed error: ${res.status}`);
     const data = await res.json();
-    return data.embedding || [];
+    if (data.embedding?.length) {
+      console.log(`[Embed] Ollama responded (${data.embedding.length} dims)`);
+      return { embedding: data.embedding, model: ollamaModel };
+    }
+    throw new Error("Empty embedding from Ollama");
   } catch (err) {
-    console.warn("[Embed] Ollama embedding unavailable:", (err as Error).message);
-    return [];
+    console.warn("[Embed] Ollama unavailable, trying HuggingFace:", (err as Error).message);
+  }
+
+  // ── Fallback: HuggingFace Inference API ──────────────────────────────────
+  const hfToken = process.env.HF_TOKEN;
+  if (!hfToken) {
+    console.warn("[Embed] HF_TOKEN not set — embedding unavailable");
+    return { embedding: [], model: "" };
+  }
+
+  try {
+    const { HfInference } = await import("@huggingface/inference");
+    const hf = new HfInference(hfToken);
+    const hfModel = process.env.HF_EMBEDDING_MODEL || "sentence-transformers/all-MiniLM-L6-v2";
+    const result = await hf.featureExtraction({ model: hfModel, inputs: text });
+    const embedding = Array.isArray(result[0]) ? (result as number[][])[0] : (result as number[]);
+    console.log(`[Embed] HuggingFace responded (${embedding.length} dims)`);
+    return { embedding, model: hfModel };
+  } catch (err) {
+    console.warn("[Embed] HuggingFace embedding failed:", (err as Error).message);
+    return { embedding: [], model: "" };
   }
 }

@@ -1,19 +1,19 @@
 import mongoose, { Schema, models, Model } from "mongoose";
 
 export interface IVectorChunk extends mongoose.Document {
-  // Nested metadata object (matches Python structure)
   metadata: {
     company_id: string;
     category: string;
     filename: string;
     uploaded_by: string;
   };
-  
-  // The actual text chunk used for AI context
   textContent: string;
-  
-  // The vector embedding (Array of numbers, typically 384 floats for all-MiniLM-L6-v2)
   vectorContent: number[];
+  // Tracks which model generated this embedding.
+  // Ollama (nomic-embed-text) → 768-dim
+  // HuggingFace (all-MiniLM-L6-v2) → 384-dim
+  // At query time we filter by this field so dimensions always match.
+  embeddingModel: string;
 }
 
 const VectorChunkSchema = new Schema<IVectorChunk>(
@@ -25,19 +25,19 @@ const VectorChunkSchema = new Schema<IVectorChunk>(
       uploaded_by: { type: String, required: true },
     },
     textContent: { type: String, required: true },
-    
-    // ⚠️ Critical: This stores the embedding. 
-    // In Cosmos DB Mongo vCore, this needs to be indexed for vector search.
+    // ⚠️ In Cosmos DB Mongo vCore this needs a vector index.
     vectorContent: { type: [Number], required: true },
+    embeddingModel: { type: String, required: true, default: "unknown" },
   },
   {
     timestamps: false,
     // ⚠️ MUST match the Python variable: VECTOR_COLLECTION_NAME = "vector_store"
-    collection: "vector_store", 
+    collection: "vector_store",
   }
 );
 
-// Prevent model overwrite
-const VectorChunk = (models.VectorChunk as Model<IVectorChunk>) || mongoose.model<IVectorChunk>("VectorChunk", VectorChunkSchema);
+const VectorChunk =
+  (models.VectorChunk as Model<IVectorChunk>) ||
+  mongoose.model<IVectorChunk>("VectorChunk", VectorChunkSchema);
 
 export default VectorChunk;

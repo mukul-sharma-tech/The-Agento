@@ -154,18 +154,20 @@ export async function POST(req: Request) {
       metadata: { company_id: string; category: string; filename: string; uploaded_by: string };
       textContent: string;
       vectorContent: number[];
+      embeddingModel: string;
     }> = [];
 
     for (let i = 0; i < chunks.length; i++) {
       const chunk = chunks[i];
       
       try {
-        const emb = await getEmbedding(chunk);
-        if (emb.length > 0) {
+        const { embedding, model } = await getEmbedding(chunk);
+        if (embedding.length > 0) {
           vectors.push({
             metadata: { company_id: companyId, category, filename: file.name, uploaded_by: uploadedBy },
             textContent: chunk,
-            vectorContent: emb,
+            vectorContent: embedding,
+            embeddingModel: model,
           });
         }
       } catch {
