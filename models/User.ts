@@ -123,7 +123,10 @@ export interface IUser extends mongoose.Document {
   accountVerified: boolean; // true for admins, false for employees until approved
   verifiedBy?: string; // admin user ID who verified
   verifiedAt?: Date;
-  
+
+  // AI usage tracking
+  aiCallCount: number;
+
   createdAt: Date;
   updatedAt: Date;
 
@@ -164,6 +167,9 @@ const UserSchema = new Schema<IUser>(
     accountVerified: { type: Boolean, default: false },
     verifiedBy: { type: String },
     verifiedAt: { type: Date },
+
+    // AI usage tracking
+    aiCallCount: { type: Number, default: 0 },
   },
   {
     timestamps: true,

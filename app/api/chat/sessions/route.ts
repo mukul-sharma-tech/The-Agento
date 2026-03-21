@@ -16,7 +16,7 @@ export async function GET(req: Request) {
     await connectDB();
     const filter: Record<string, string> = {
       company_id: session.user.company_id,
-      user_email: session.user.email,
+      user_email: session.user.email ?? "",
     };
     if (mode) filter.mode = mode;
 
@@ -44,7 +44,7 @@ export async function POST(req: Request) {
     await connectDB();
     const chatSession = await ChatSession.create({
       company_id: session.user.company_id,
-      user_email: session.user.email,
+      user_email: session.user.email ?? "",
       title: "New Chat",
       mode,
       messages: [],

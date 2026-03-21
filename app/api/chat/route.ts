@@ -4,6 +4,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectDB } from "@/lib/db";
 import VectorChunk from "@/models/VectorChunk";
 import { callLLM, getEmbedding } from "@/lib/llm";
+import { checkAndIncrementAILimit } from "@/lib/rateLimit";
 
 
 function cosineSimilarity(a: number[], b: number[]): number {
@@ -135,6 +136,15 @@ export async function POST(req: Request) {
 
     if (!message) {
       return NextResponse.json({ message: "Message is required" }, { status: 400 });
+    }
+
+    // ── Rate limit check ──────────────────────────────────────────────────────
+    const limit = await checkAndIncrementAILimit(session.user.email!);
+    if (!limit.allowed) {
+      return NextResponse.json(
+        { message: "AI call limit reached", limitReached: true, used: limit.used, limit: limit.limit },
+        { status: 429 }
+      );
     }
 
     await connectDB();

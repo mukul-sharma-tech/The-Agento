@@ -5,6 +5,7 @@ import { connectDB } from "@/lib/db";
 import mongoose from "mongoose";
 import { inferSchema } from "@/app/api/query-genius/schema/route";
 import { callLLM } from "@/lib/llm";
+import { checkAndIncrementAILimit } from "@/lib/rateLimit";
 
 function sanitizeDocs(results: Record<string, unknown>[]) {
   return results.map((doc) => {
@@ -26,6 +27,18 @@ export async function POST(req: Request) {
 
     if (!collectionName || !operation) {
       return NextResponse.json({ message: "collectionName and operation required" }, { status: 400 });
+    }
+
+    // ── Rate limit (only LLM operations: read, update, delete) ───────────────
+    const llmOps = ["read", "update", "delete"];
+    if (llmOps.includes(operation)) {
+      const limit = await checkAndIncrementAILimit(session.user.email!);
+      if (!limit.allowed) {
+        return NextResponse.json(
+          { message: "AI call limit reached", limitReached: true, used: limit.used, limit: limit.limit },
+          { status: 429 }
+        );
+      }
     }
 
     await connectDB();

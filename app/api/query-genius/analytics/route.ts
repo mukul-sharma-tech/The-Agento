@@ -4,6 +4,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectDB } from "@/lib/db";
 import mongoose from "mongoose";
 import { callLLM } from "@/lib/llm";
+import { checkAndIncrementAILimit } from "@/lib/rateLimit";
 
 export async function POST(req: Request) {
   try {
@@ -13,6 +14,15 @@ export async function POST(req: Request) {
     const { type, collectionName, query } = await req.json();
     if (!collectionName || !type || !query) {
       return NextResponse.json({ message: "type, collectionName and query required" }, { status: 400 });
+    }
+
+    // ── Rate limit ────────────────────────────────────────────────────────────
+    const limit = await checkAndIncrementAILimit(session.user.email!);
+    if (!limit.allowed) {
+      return NextResponse.json(
+        { message: "AI call limit reached", limitReached: true, used: limit.used, limit: limit.limit },
+        { status: 429 }
+      );
     }
 
     await connectDB();
