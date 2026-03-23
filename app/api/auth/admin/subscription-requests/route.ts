@@ -8,42 +8,45 @@ import mongoose from "mongoose";
 import type { ISubscriptionRequest } from "@/models/SubscriptionRequest";
 
 const PLAN_LIMITS = {
-  "pro-chat":  { calls: 500,  days: 30 },
-  "pro-query": { calls: 500,  days: 30 },
-  "business":  { calls: -1,   days: 30 },
+  "pro-chat":  { days: 30 },
+  "pro-query": { days: 30 },
+  "business":  { days: 30 },
 };
 
 function getRequestModel(conn: mongoose.Connection) {
   if (conn.models.SubscriptionRequest) return conn.models.SubscriptionRequest;
   const schema = new mongoose.Schema<ISubscriptionRequest>(
     {
-      userId: { type: String, required: true },
-      userName: { type: String, required: true },
-      userEmail: { type: String, required: true },
-      company_id: { type: String, required: true },
+      userId:       { type: String, required: true },
+      userName:     { type: String, required: true },
+      userEmail:    { type: String, required: true },
+      company_id:   { type: String, required: true },
       company_name: { type: String, required: true },
-      plan: { type: String, enum: ["pro-chat", "pro-query", "business"], required: true },
-      status: { type: String, enum: ["pending", "approved", "rejected"], default: "pending" },
-      requestedAt: { type: Date, default: Date.now },
-      resolvedAt: { type: Date },
-      resolvedBy: { type: String },
+      plan:         { type: String, enum: ["pro-chat", "pro-query", "business"], required: true },
+      status:       { type: String, enum: ["pending", "approved", "rejected"], default: "pending" },
+      requestedAt:  { type: Date, default: Date.now },
+      resolvedAt:   { type: Date },
+      resolvedBy:   { type: String },
     },
     { timestamps: true }
   );
   return conn.model<ISubscriptionRequest>("SubscriptionRequest", schema);
 }
 
-// GET: list all subscription requests (admin only)
+async function requireAdmin() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user || session.user.role !== "admin") return null;
+  return session;
+}
+
+// GET: list all subscription requests
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user || session.user.role !== "admin") {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 403 });
-    }
+    const session = await requireAdmin();
+    if (!session) return NextResponse.json({ message: "Unauthorized" }, { status: 403 });
 
     const adminConn = await connectAdminDB();
     const SubscriptionRequest = getRequestModel(adminConn);
-
     const requests = await SubscriptionRequest.find({}).sort({ requestedAt: -1 });
     return NextResponse.json({ requests }, { status: 200 });
   } catch (error) {
@@ -52,13 +55,11 @@ export async function GET() {
   }
 }
 
-// PATCH: approve or reject a subscription request
+// PATCH: approve or reject
 export async function PATCH(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user || session.user.role !== "admin") {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 403 });
-    }
+    const session = await requireAdmin();
+    if (!session) return NextResponse.json({ message: "Unauthorized" }, { status: 403 });
 
     const { requestId, action } = await req.json();
     if (!requestId || !["approve", "reject"].includes(action)) {
@@ -81,14 +82,13 @@ export async function PATCH(req: Request) {
 
     if (action === "approve") {
       await connectDB();
-      const planConfig = PLAN_LIMITS[request.plan as keyof typeof PLAN_LIMITS];
-      const expiry = new Date(Date.now() + planConfig.days * 24 * 60 * 60 * 1000);
+      const days = PLAN_LIMITS[request.plan as keyof typeof PLAN_LIMITS]?.days ?? 30;
+      const expiry = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
 
       await User.findByIdAndUpdate(request.userId, {
         subscription: true,
         subscriptionPlan: request.plan,
         subscriptionExpiry: expiry,
-        // Reset per-feature call counts on upgrade
         chatCallCount: 0,
         voiceCallCount: 0,
         queryCallCount: 0,
@@ -103,5 +103,27 @@ export async function PATCH(req: Request) {
   } catch (error) {
     console.error("Error resolving subscription request:", error);
     return NextResponse.json({ message: "Failed to resolve request" }, { status: 500 });
+  }
+}
+
+// DELETE: remove a request record
+export async function DELETE(req: Request) {
+  try {
+    const session = await requireAdmin();
+    if (!session) return NextResponse.json({ message: "Unauthorized" }, { status: 403 });
+
+    const { requestId } = await req.json();
+    if (!requestId) return NextResponse.json({ message: "requestId required" }, { status: 400 });
+
+    const adminConn = await connectAdminDB();
+    const SubscriptionRequest = getRequestModel(adminConn);
+
+    const deleted = await SubscriptionRequest.findByIdAndDelete(requestId);
+    if (!deleted) return NextResponse.json({ message: "Request not found" }, { status: 404 });
+
+    return NextResponse.json({ message: "Request deleted" }, { status: 200 });
+  } catch (error) {
+    console.error("Error deleting subscription request:", error);
+    return NextResponse.json({ message: "Failed to delete request" }, { status: 500 });
   }
 }

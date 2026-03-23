@@ -16,6 +16,9 @@ declare module "next-auth" {
     company_name: string;
     role: "admin" | "employee";
     accountVerified: boolean;
+    subscriptionPlan?: string;
+    subscription?: boolean;
+    subscriptionExpiry?: Date;
   }
 
   interface Session {
@@ -25,6 +28,9 @@ declare module "next-auth" {
       company_name: string;
       role: "admin" | "employee";
       accountVerified: boolean;
+      subscriptionPlan?: string;
+      subscription?: boolean;
+      subscriptionExpiry?: Date;
     } & DefaultSession["user"];
   }
 }
@@ -36,6 +42,9 @@ declare module "next-auth/jwt" {
     company_name: string;
     role: "admin" | "employee";
     accountVerified: boolean;
+    subscriptionPlan?: string;
+    subscription?: boolean;
+    subscriptionExpiry?: Date;
   }
 }
 

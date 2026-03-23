@@ -141,7 +141,7 @@ export const sendSubscriptionQueuedEmail = async (
   userName: string,
   plan: string
 ) => {
-  const upiPhone = process.env.ADMIN_UPI_PHONE_NO || "N/A";
+  const upiPhone = process.env.NEXT_PUBLIC_ADMIN_UPI_PHONE_NO || "N/A";
   const adminMail = process.env.ADMIN_MAIL || "support@agento.ai";
   const price = PLAN_PRICES[plan] ?? "the plan amount";
   const planLabel = plan === "pro-chat" ? "Pro (AI Chat + Voice)" : plan === "pro-query" ? "Pro (Query Genius)" : "Business";

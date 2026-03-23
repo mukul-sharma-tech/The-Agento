@@ -1,8 +1,9 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { connectAdminDB } from "@/lib/db";
+import { connectDB, connectAdminDB } from "@/lib/db";
 import { sendSubscriptionRequestEmail, sendSubscriptionQueuedEmail } from "@/lib/email";
+import User from "@/models/User";
 import mongoose from "mongoose";
 import type { ISubscriptionRequest } from "@/models/SubscriptionRequest";
 
@@ -40,18 +41,44 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Invalid plan" }, { status: 400 });
     }
 
+    // --- Plan combo enforcement ---
+    await connectDB();
+    const user = await User.findById(session.user.id);
+    if (user) {
+      const activePlan = user.subscriptionPlan;
+      const expiry = user.subscriptionExpiry;
+      const isActive = user.subscription && expiry && expiry > new Date();
+
+      if (isActive) {
+        // Already on business — no upgrade needed
+        if (activePlan === "business") {
+          return NextResponse.json({ message: "You already have an active Business plan." }, { status: 409 });
+        }
+        // Requesting business while a pro plan is active — must wait for expiry
+        if (plan === "business") {
+          return NextResponse.json({
+            message: `You have an active ${activePlan} plan until ${expiry!.toDateString()}. You can upgrade to Business after it expires.`,
+          }, { status: 409 });
+        }
+        // Requesting the same pro plan they already have
+        if (activePlan === plan) {
+          return NextResponse.json({ message: `You already have an active ${plan} plan.` }, { status: 409 });
+        }
+        // pro-chat + pro-query is allowed — fall through
+      }
+    }
+
     const adminConn = await connectAdminDB();
     const SubscriptionRequest = getRequestModel(adminConn);
 
+    // Block duplicate pending request for same plan
     const existing = await SubscriptionRequest.findOne({
       userId: session.user.id,
+      plan,
       status: "pending",
     });
     if (existing) {
-      return NextResponse.json(
-        { message: "You already have a pending subscription request." },
-        { status: 409 }
-      );
+      return NextResponse.json({ message: "You already have a pending request for this plan." }, { status: 409 });
     }
 
     await SubscriptionRequest.create({
@@ -63,7 +90,6 @@ export async function POST(req: Request) {
       plan,
     });
 
-    // Notify admin
     await sendSubscriptionRequestEmail(
       session.user.name!,
       session.user.email!,
@@ -71,7 +97,6 @@ export async function POST(req: Request) {
       plan
     );
 
-    // Notify user with UPI payment instructions
     await sendSubscriptionQueuedEmail(
       session.user.email!,
       session.user.name!,
