@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectAdminDB } from "@/lib/db";
@@ -63,6 +63,7 @@ export async function POST(req: Request) {
       plan,
     });
 
+    // Notify admin
     await sendSubscriptionRequestEmail(
       session.user.name!,
       session.user.email!,
@@ -70,6 +71,7 @@ export async function POST(req: Request) {
       plan
     );
 
+    // Notify user with UPI payment instructions
     await sendSubscriptionQueuedEmail(
       session.user.email!,
       session.user.name!,
