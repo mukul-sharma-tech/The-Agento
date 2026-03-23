@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -93,7 +93,6 @@ export default function LandingPage() {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] rounded-full border border-indigo-300/20 animate-spin-slow pointer-events-none" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full border border-violet-300/20 animate-spin-slow pointer-events-none" style={{ animationDirection: "reverse", animationDuration: "15s" }} />
 
-        {/* Floating cards */}
         <div className="absolute top-24 left-8 md:left-24 animate-float hidden md:block">
           <FloatCard className="p-4 w-48">
             <div className="flex items-center gap-2 mb-2">
@@ -144,7 +143,6 @@ export default function LandingPage() {
           </FloatCard>
         </div>
 
-        {/* Hero content */}
         <div className="relative z-10 text-center max-w-4xl mx-auto">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-600 text-sm font-medium mb-8 animate-fade-in">
             <Sparkles className="w-3.5 h-3.5" /> Agentic AI for your company knowledge
