@@ -127,3 +127,45 @@ export const sendSubscriptionRejectedEmail = async (
   `;
   return sendEmail(userEmail, `[Agento] Subscription request update`, html);
 };
+
+const PLAN_PRICES: Record<string, string> = {
+  "pro-chat":  "₹350",
+  "pro-query": "₹350",
+  "business":  "₹699",
+};
+
+/** Sent to user immediately after they submit a subscription request */
+export const sendSubscriptionQueuedEmail = async (
+  userEmail: string,
+  userName: string,
+  plan: string
+) => {
+  const upiPhone = process.env.ADMIN_UPI_PHONE_NO || "N/A";
+  const adminMail = process.env.ADMIN_MAIL || "support@agento.ai";
+  const price = PLAN_PRICES[plan] ?? "the plan amount";
+  const planLabel = plan === "pro-chat" ? "Pro (AI Chat + Voice)" : plan === "pro-query" ? "Pro (Query Genius)" : "Business";
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#1e293b">
+      <h2 style="color:#4f46e5">Your request is in queue — Agento</h2>
+      <p>Hi ${userName},</p>
+      <p>We've received your subscription request for the <strong>${planLabel}</strong> plan. 🎉</p>
+
+      <div style="background:#f1f5f9;border-left:4px solid #4f46e5;padding:16px 20px;border-radius:6px;margin:20px 0">
+        <p style="margin:0 0 8px 0;font-weight:bold">To activate your plan, please complete the payment:</p>
+        <p style="margin:4px 0">💰 <strong>Amount:</strong> ${price}/month</p>
+        <p style="margin:4px 0">📱 <strong>UPI / Phone Pay to:</strong> <span style="font-size:18px;font-weight:bold;color:#4f46e5">${upiPhone}</span></p>
+      </div>
+
+      <p>After payment, <strong>reply to this email with your payment screenshot</strong> and we'll activate your plan within 24 hours.</p>
+
+      <p style="color:#64748b;font-size:13px">
+        Questions? Reply to this email or contact us at 
+        <a href="mailto:${adminMail}" style="color:#4f46e5">${adminMail}</a>
+      </p>
+
+      <p>— Team Agento</p>
+    </div>
+  `;
+  return sendEmail(userEmail, `[Agento] Your ${planLabel} request is in queue — complete payment to activate`, html);
+};

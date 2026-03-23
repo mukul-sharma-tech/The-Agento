@@ -49,12 +49,20 @@ export default function PricingPage() {
         body: JSON.stringify({ plan }),
       });
       const data = await res.json();
-      setToast({ msg: data.message, ok: res.ok });
+      if (res.ok) {
+        const upi = process.env.NEXT_PUBLIC_ADMIN_UPI_PHONE_NO || "";
+        setToast({
+          msg: `Request sent! Pay ${plan === "business" ? "₹699" : "₹350"} to UPI ${upi} and reply to the confirmation email with your screenshot.`,
+          ok: true,
+        });
+      } else {
+        setToast({ msg: data.message, ok: false });
+      }
     } catch {
       setToast({ msg: "Something went wrong. Try again.", ok: false });
     } finally {
       setRequesting(null);
-      setTimeout(() => setToast(null), 5000);
+      setTimeout(() => setToast(null), 12000);
     }
   };
 
@@ -64,7 +72,7 @@ export default function PricingPage() {
     <main className="relative min-h-screen overflow-hidden bg-slate-100 dark:bg-[#0b1220]">
       {/* Toast */}
       {toast && (
-        <div className={`fixed top-5 right-5 z-50 px-5 py-3 rounded-xl shadow-lg text-sm font-medium text-white ${toast.ok ? "bg-green-600" : "bg-red-500"}`}>
+        <div className={`fixed top-5 right-5 z-50 max-w-sm px-5 py-4 rounded-xl shadow-lg text-sm font-medium text-white leading-relaxed ${toast.ok ? "bg-green-600" : "bg-red-500"}`}>
           {toast.msg}
         </div>
       )}

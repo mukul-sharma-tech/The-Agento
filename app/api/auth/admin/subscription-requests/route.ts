@@ -22,7 +22,7 @@ function getRequestModel(conn: mongoose.Connection) {
       userEmail: { type: String, required: true },
       company_id: { type: String, required: true },
       company_name: { type: String, required: true },
-      plan: { type: String, enum: ["pro", "business"], required: true },
+      plan: { type: String, enum: ["pro-chat", "pro-query", "business"], required: true },
       status: { type: String, enum: ["pending", "approved", "rejected"], default: "pending" },
       requestedAt: { type: Date, default: Date.now },
       resolvedAt: { type: Date },

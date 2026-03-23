@@ -43,12 +43,20 @@ export default function PricingModal({ used, limit, onClose, inline = false }: P
         body: JSON.stringify({ plan }),
       });
       const data = await res.json();
-      setToast({ msg: data.message, ok: res.ok });
+      if (res.ok) {
+        const upi = process.env.NEXT_PUBLIC_ADMIN_UPI_PHONE_NO || "";
+        setToast({
+          msg: `Request sent! Pay ${plan === "business" ? "₹699" : "₹350"} to UPI ${upi} and reply to the confirmation email with your screenshot.`,
+          ok: true,
+        });
+      } else {
+        setToast({ msg: data.message, ok: false });
+      }
     } catch {
       setToast({ msg: "Something went wrong.", ok: false });
     } finally {
       setRequesting(null);
-      setTimeout(() => setToast(null), 5000);
+      setTimeout(() => setToast(null), 12000);
     }
   };
 
