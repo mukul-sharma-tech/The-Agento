@@ -33,7 +33,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (!session?.user) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
     const { id } = await params;
-    const { userMessage, assistantMessage, mermaidCode } = await req.json();
+    const { userMessage, assistantMessage, mermaidCode, citations } = await req.json();
 
     await connectDB();
     const chatSession = await ChatSession.findOne({
@@ -53,6 +53,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     chatSession.messages.push({
       role: "assistant", content: assistantMessage,
       ...(mermaidCode && { mermaidCode }),
+      ...(citations?.length && { citations }),
       createdAt: new Date(),
     });
 

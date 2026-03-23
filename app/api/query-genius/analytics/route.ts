@@ -17,7 +17,7 @@ export async function POST(req: Request) {
     }
 
     // ── Rate limit ────────────────────────────────────────────────────────────
-    const limit = await checkAndIncrementAILimit(session.user.email!);
+    const limit = await checkAndIncrementAILimit(session.user.email!, "query");
     if (!limit.allowed) {
       return NextResponse.json(
         { message: "AI call limit reached", limitReached: true, used: limit.used, limit: limit.limit },

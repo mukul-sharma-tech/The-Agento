@@ -4,6 +4,7 @@ export interface IChatMessage {
   role: "user" | "assistant";
   content: string;
   mermaidCode?: string;
+  citations?: { filename: string; category: string }[];
   createdAt: Date;
 }
 
@@ -21,6 +22,7 @@ const ChatMessageSchema = new Schema<IChatMessage>({
   role: { type: String, enum: ["user", "assistant"], required: true },
   content: { type: String, required: true },
   mermaidCode: { type: String },
+  citations: [{ filename: String, category: String }],
   createdAt: { type: Date, default: Date.now },
 }, { _id: false });
 

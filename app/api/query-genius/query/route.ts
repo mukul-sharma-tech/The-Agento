@@ -32,7 +32,7 @@ export async function POST(req: Request) {
     // ── Rate limit (only LLM operations: read, update, delete) ───────────────
     const llmOps = ["read", "update", "delete"];
     if (llmOps.includes(operation)) {
-      const limit = await checkAndIncrementAILimit(session.user.email!);
+      const limit = await checkAndIncrementAILimit(session.user.email!, "query");
       if (!limit.allowed) {
         return NextResponse.json(
           { message: "AI call limit reached", limitReached: true, used: limit.used, limit: limit.limit },

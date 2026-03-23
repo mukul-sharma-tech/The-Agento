@@ -124,8 +124,15 @@ export interface IUser extends mongoose.Document {
   verifiedBy?: string; // admin user ID who verified
   verifiedAt?: Date;
 
-  // AI usage tracking
-  aiCallCount: number;
+  // AI usage tracking (per-feature, 10 free calls each)
+  chatCallCount: number;
+  voiceCallCount: number;
+  queryCallCount: number;
+
+  // Subscription
+  subscription: boolean;
+  subscriptionPlan?: "starter" | "pro-chat" | "pro-query" | "business";
+  subscriptionExpiry?: Date;
 
   createdAt: Date;
   updatedAt: Date;
@@ -168,8 +175,15 @@ const UserSchema = new Schema<IUser>(
     verifiedBy: { type: String },
     verifiedAt: { type: Date },
 
-    // AI usage tracking
-    aiCallCount: { type: Number, default: 0 },
+    // AI usage tracking (per-feature, 10 free calls each)
+    chatCallCount:  { type: Number, default: 0 },
+    voiceCallCount: { type: Number, default: 0 },
+    queryCallCount: { type: Number, default: 0 },
+
+    // Subscription
+    subscription: { type: Boolean, default: false },
+    subscriptionPlan: { type: String, enum: ["starter", "pro-chat", "pro-query", "business"], default: "starter" },
+    subscriptionExpiry: { type: Date },
   },
   {
     timestamps: true,

@@ -139,7 +139,7 @@ export async function POST(req: Request) {
     }
 
     // ── Rate limit check ──────────────────────────────────────────────────────
-    const limit = await checkAndIncrementAILimit(session.user.email!);
+    const limit = await checkAndIncrementAILimit(session.user.email!, isVoiceMode ? "voice" : "chat");
     if (!limit.allowed) {
       return NextResponse.json(
         { message: "AI call limit reached", limitReached: true, used: limit.used, limit: limit.limit },
@@ -163,6 +163,7 @@ export async function POST(req: Request) {
     let queryEmbedding: number[] = [];
     let queryModel = "";
     let relevantChunks: string[] = [];
+    let sourceChunks: { metadata: { filename: string; category: string } }[] = [];
     
     try {
       const result = await getEmbedding(message);
@@ -188,11 +189,13 @@ export async function POST(req: Request) {
 
       // Get top K relevant chunks
       const topK = 5;
-      relevantChunks = scoredChunks
-        .filter((item) => item.score > 0.2) // Lower threshold for more results
+      const topChunks = scoredChunks
+        .filter((item) => item.score > 0.2)
         .sort((a, b) => b.score - a.score)
-        .slice(0, topK)
-        .map((item) => item.chunk.textContent);
+        .slice(0, topK);
+
+      relevantChunks = topChunks.map((item) => item.chunk.textContent);
+      sourceChunks = topChunks.map((item) => item.chunk);
 
       console.log(`Vector search found ${relevantChunks.length} relevant chunks`);
     }
@@ -200,7 +203,12 @@ export async function POST(req: Request) {
     // If no vector results, try text search
     if (relevantChunks.length === 0) {
       console.log("No vector results, trying text search...");
-      relevantChunks = await textSearch(message, companyId);
+      const textChunks = await VectorChunk.find({
+        "metadata.company_id": companyId,
+        textContent: { $regex: message, $options: "i" },
+      }).limit(10);
+      sourceChunks = textChunks;
+      relevantChunks = textChunks.map(c => c.textContent);
       console.log(`Text search found ${relevantChunks.length} chunks`);
     }
 
@@ -269,13 +277,17 @@ Answer the user's question based on the context above. If the question is about 
     // Generate flowchart if applicable
     const mermaidCode = await generateFlowchart(message, response);
 
+    // Build deduplicated citations from source chunks
+    const citations = Array.from(
+      new Map(
+        sourceChunks.map(c => [c.metadata.filename, c.metadata])
+      ).values()
+    ).map(meta => ({ filename: meta.filename, category: meta.category }));
+
     return NextResponse.json({
       message: response,
       mermaidCode,
-      sources: relevantChunks.map((text, idx) => ({
-        id: idx + 1,
-        preview: text.substring(0, 200) + "...",
-      })),
+      citations,
     }, { status: 200 });
   } catch (error) {
     console.error("Chat error:", error);

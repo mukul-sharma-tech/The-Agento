@@ -6,7 +6,7 @@ import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Loader2, Send, Bot, User, ArrowLeft, Zap, X, FileImage,
+  Loader2, Send, Bot, User, ArrowLeft, Zap, X, FileImage, FileText,
   PlusCircle, MessageSquare, Trash2, Clock, PanelLeftClose, PanelLeftOpen,
 } from "lucide-react";
 import Image from "next/image";
@@ -15,6 +15,7 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   mermaidCode?: string;
+  citations?: { filename: string; category: string }[];
 }
 
 interface ChatSessionMeta {
@@ -192,7 +193,12 @@ export default function ChatPage() {
     const res = await fetch(`/api/chat/sessions/${id}`);
     if (res.ok) {
       const d = await res.json();
-      setMessages(d.session.messages || []);
+      setMessages((d.session.messages || []).map((m: { role: "user"|"assistant"; content: string; mermaidCode?: string; citations?: {filename:string;category:string}[] }) => ({
+        role: m.role,
+        content: m.content,
+        mermaidCode: m.mermaidCode,
+        citations: m.citations || [],
+      })));
     }
   };
 
@@ -242,14 +248,14 @@ export default function ChatPage() {
       if (!res.ok) {
         setError(data.message || "Failed to get response");
       } else {
-        const assistantMsg: Message = { role: "assistant", content: data.message, mermaidCode: data.mermaidCode };
+        const assistantMsg: Message = { role: "assistant", content: data.message, mermaidCode: data.mermaidCode, citations: data.citations || [] };
         setMessages(prev => [...prev, assistantMsg]);
 
         // Persist to DB
         await fetch(`/api/chat/sessions/${sessionId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userMessage, assistantMessage: data.message, mermaidCode: data.mermaidCode }),
+          body: JSON.stringify({ userMessage, assistantMessage: data.message, mermaidCode: data.mermaidCode, citations: data.citations }),
         });
 
         // Refresh sidebar to update title + timestamp
@@ -400,8 +406,18 @@ export default function ChatPage() {
                           <FileImage className="w-4 h-4" />View Flowchart
                         </Button>
                       )}
-                    </div>
-                    {msg.role === "user" && (
+                      {msg.role === "assistant" && msg.citations && msg.citations.length > 0 && (
+                        <div className="mt-3 pt-2.5 border-t border-slate-200/60 dark:border-slate-700/60 flex flex-wrap gap-1.5">
+                          {msg.citations.map((c, ci) => (
+                            <span key={ci} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-xs">
+                              <FileText className="w-3 h-3 flex-shrink-0" />
+                              {c.filename}
+                              {c.category && <span className="text-slate-400 dark:text-slate-500">· {c.category}</span>}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>                    {msg.role === "user" && (
                       <div className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-600/20 dark:bg-slate-600/30 flex items-center justify-center">
                         <User className="w-5 h-5 text-slate-600 dark:text-slate-400" />
                       </div>

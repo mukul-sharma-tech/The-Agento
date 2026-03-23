@@ -7,6 +7,12 @@ declare global {
         promise: Promise<typeof mongoose> | null;
       }
     | undefined;
+  var mongooseAdminConn:
+    | {
+        conn: mongoose.Connection | null;
+        promise: Promise<mongoose.Connection> | null;
+      }
+    | undefined;
 }
 
 export {};
