@@ -12,16 +12,17 @@ const transporter = nodemailer.createTransport({
 
 export const sendEmail = async (to: string, subject: string, html: string) => {
   try {
+    console.log(`[email] Sending to=${to} subject="${subject}"`);
     const info = await transporter.sendMail({
       from: `"Agento" <${process.env.EMAIL_FROM}>`,
       to,
       subject,
       html,
     });
-    console.log('Email sent:', info.messageId);
+    console.log(`[email] Sent OK: ${info.messageId}`);
     return { success: true };
   } catch (error) {
-    console.error('Email send error:', error);
+    console.error(`[email] FAILED to=${to} subject="${subject}":`, error);
     return { success: false, error };
   }
 };
