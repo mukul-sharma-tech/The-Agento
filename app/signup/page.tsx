@@ -52,7 +52,7 @@ export default function SignupPage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    
+
     // Auto-populate company_name when employee selects a company
     if (name === "company_id" && form.role === "employee") {
       const selectedCompany = companies.find(c => c.company_id === value);
@@ -63,7 +63,7 @@ export default function SignupPage() {
       });
       return;
     }
-    
+
     setForm({ ...form, [name]: value });
   };
 
@@ -149,6 +149,12 @@ export default function SignupPage() {
           <CardTitle className="text-2xl text-center">Signup</CardTitle>
         </CardHeader>
         <CardContent>
+          <div className="mb-6 p-4 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 text-xs text-indigo-700 dark:text-indigo-300 leading-relaxed shadow-sm">
+            <span className="font-bold flex items-center gap-1.5 mb-1.5">
+              💡 Testing Tip
+            </span>
+            For testing of this platform, please select <strong>Admin as role</strong> while signing up instead of Employee.
+          </div>
           {error && <p className="text-red-500 mb-4">{error}</p>}
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div>

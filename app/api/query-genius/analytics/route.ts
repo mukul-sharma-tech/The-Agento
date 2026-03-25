@@ -43,10 +43,10 @@ export async function POST(req: Request) {
     const fields = sample[0] ? Object.keys(sample[0]) : [];
 
     const systemPrompts: Record<string, string> = {
-      descriptive: `You are a data analyst. Perform DESCRIPTIVE analytics ("What happened?") — summarize counts, averages, totals, distributions.`,
-      diagnostic:  `You are a data analyst. Perform DIAGNOSTIC analytics ("Why did it happen?") — find root causes, correlations, and segments.`,
-      predictive:  `You are a data analyst. Perform PREDICTIVE analytics ("What might happen?") — identify trends and forecast future outcomes.`,
-      prescriptive:`You are a data analyst. Perform PRESCRIPTIVE analytics ("What should we do?") — surface actionable recommendations.`,
+      descriptive: `You are a data analyst. Perform DESCRIPTIVE analytics ("What happened?") - summarize counts, averages, totals, distributions.`,
+      diagnostic: `You are a data analyst. Perform DIAGNOSTIC analytics ("Why did it happen?") - find root causes, correlations, and segments.`,
+      predictive: `You are a data analyst. Perform PREDICTIVE analytics ("What might happen?") - identify trends and forecast future outcomes.`,
+      prescriptive: `You are a data analyst. Perform PRESCRIPTIVE analytics ("What should we do?") - surface actionable recommendations.`,
     };
 
     const prompt = `${systemPrompts[type]}
@@ -59,7 +59,7 @@ ${JSON.stringify(sample, null, 2)}
 
 USER QUESTION: "${query}"
 
-Reply in EXACTLY this format — no markdown, no code fences:
+Reply in EXACTLY this format - no markdown, no code fences:
 PIPELINE:
 [JSON aggregation pipeline array]
 CHART_TYPE:
@@ -69,7 +69,7 @@ INSIGHT:
 
     let raw: string;
     try {
-      raw = await callLLM(prompt, 120000); // 2 min — analytics prompts are large
+      raw = await callLLM(prompt, 120000); // 2 min - analytics prompts are large
     } catch (llmErr) {
       console.error("[Analytics] LLM failed:", llmErr);
       return NextResponse.json({ message: `LLM unavailable: ${(llmErr as Error).message}` }, { status: 502 });
@@ -77,7 +77,7 @@ INSIGHT:
 
     console.log("[Analytics] raw LLM response:", raw.slice(0, 500));
 
-    // Parse pipeline — be lenient: accept ```json fences too
+    // Parse pipeline - be lenient: accept ```json fences too
     let pipeline: object[] = [];
     const cleaned = raw.replace(/```json\s*/g, "").replace(/```\s*/g, "");
 
@@ -130,7 +130,7 @@ INSIGHT:
               const obj = v as Record<string, unknown>;
               if ("count" in obj) { out[k] = Number(obj.count); continue; }
               if ("total" in obj) { out[k] = Number(obj.total); continue; }
-              if ("avg"   in obj) { out[k] = Number(obj.avg);   continue; }
+              if ("avg" in obj) { out[k] = Number(obj.avg); continue; }
               out[k] = JSON.stringify(v);
             } else if (Array.isArray(v)) {
               out[k] = v.length;

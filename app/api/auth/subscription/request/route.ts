@@ -13,16 +13,16 @@ function getRequestModel(conn: mongoose.Connection) {
   if (conn.models.SubscriptionRequest) return conn.models.SubscriptionRequest;
   const schema = new mongoose.Schema<ISubscriptionRequest>(
     {
-      userId:       { type: String, required: true },
-      userName:     { type: String, required: true },
-      userEmail:    { type: String, required: true },
-      company_id:   { type: String, required: true },
+      userId: { type: String, required: true },
+      userName: { type: String, required: true },
+      userEmail: { type: String, required: true },
+      company_id: { type: String, required: true },
       company_name: { type: String, required: true },
-      plan:         { type: String, enum: ["pro-chat", "pro-query", "business"], required: true },
-      status:       { type: String, enum: ["pending", "approved", "rejected"], default: "pending" },
-      requestedAt:  { type: Date, default: Date.now },
-      resolvedAt:   { type: Date },
-      resolvedBy:   { type: String },
+      plan: { type: String, enum: ["pro-chat", "pro-query", "business"], required: true },
+      status: { type: String, enum: ["pending", "approved", "rejected"], default: "pending" },
+      requestedAt: { type: Date, default: Date.now },
+      resolvedAt: { type: Date },
+      resolvedBy: { type: String },
     },
     { timestamps: true }
   );
@@ -50,11 +50,11 @@ export async function POST(req: Request) {
       const isActive = user.subscription && expiry && expiry > new Date();
 
       if (isActive) {
-        // Already on business — no upgrade needed
+        // Already on business - no upgrade needed
         if (activePlan === "business") {
           return NextResponse.json({ message: "You already have an active Business plan." }, { status: 409 });
         }
-        // Requesting business while a pro plan is active — must wait for expiry
+        // Requesting business while a pro plan is active - must wait for expiry
         if (plan === "business") {
           return NextResponse.json({
             message: `You have an active ${activePlan} plan until ${expiry!.toDateString()}. You can upgrade to Business after it expires.`,
@@ -64,7 +64,7 @@ export async function POST(req: Request) {
         if (activePlan === plan) {
           return NextResponse.json({ message: `You already have an active ${plan} plan.` }, { status: 409 });
         }
-        // pro-chat + pro-query is allowed — fall through
+        // pro-chat + pro-query is allowed - fall through
       }
     }
 
@@ -82,10 +82,10 @@ export async function POST(req: Request) {
     }
 
     await SubscriptionRequest.create({
-      userId:       session.user.id,
-      userName:     session.user.name,
-      userEmail:    session.user.email,
-      company_id:   session.user.company_id,
+      userId: session.user.id,
+      userName: session.user.name,
+      userEmail: session.user.email,
+      company_id: session.user.company_id,
       company_name: session.user.company_name,
       plan,
     });

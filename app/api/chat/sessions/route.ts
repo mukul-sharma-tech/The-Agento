@@ -4,7 +4,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectDB } from "@/lib/db";
 import ChatSession from "@/models/ChatSession";
 
-// GET — list all sessions for the current user (optionally filtered by mode)
+// GET - list all sessions for the current user (optionally filtered by mode)
 export async function GET(req: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -32,7 +32,7 @@ export async function GET(req: Request) {
   }
 }
 
-// POST — create a new empty session
+// POST - create a new empty session
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);

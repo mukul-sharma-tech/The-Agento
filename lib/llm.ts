@@ -115,7 +115,7 @@ export async function getEmbedding(text: string): Promise<{ embedding: number[];
   // ── Fallback: HuggingFace Inference API ──────────────────────────────────
   const hfToken = process.env.HF_TOKEN;
   if (!hfToken) {
-    console.warn("[Embed] HF_TOKEN not set — embedding unavailable");
+    console.warn("[Embed] HF_TOKEN not set - embedding unavailable");
     return { embedding: [], model: "" };
   }
 

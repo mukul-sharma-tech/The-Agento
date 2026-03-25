@@ -164,7 +164,7 @@ RESPONSE (JSON array only):`;
           const exists = await col.findOne({ [field]: doc[field] });
           if (exists) {
             return NextResponse.json({
-              message: `"${field}" must be unique — value "${doc[field]}" already exists.`,
+              message: `"${field}" must be unique - value "${doc[field]}" already exists.`,
               operation, results: [],
               validationErrors: [`Duplicate value for "${field}": ${doc[field]}`],
             }, { status: 422 });
@@ -267,7 +267,7 @@ CRITICAL RULES:
 1. Return ONLY a valid JSON object representing the filter. No markdown, no explanations.
 2. Use $regex with 'i' flag for text matches.
 3. For numeric comparisons use $gt, $lt, $gte, $lte.
-4. NEVER return {} — if the request is to delete all, return {"_deleteAll": true}.
+4. NEVER return {} - if the request is to delete all, return {"_deleteAll": true}.
 
 RESPONSE (JSON object only):`;
 
@@ -281,7 +281,7 @@ RESPONSE (JSON object only):`;
 
       if (Object.keys(filter).length === 0) {
         return NextResponse.json({
-          message: "Delete filter is empty — be more specific.",
+          message: "Delete filter is empty - be more specific.",
           operation, results: [],
         }, { status: 422 });
       }
@@ -289,7 +289,7 @@ RESPONSE (JSON object only):`;
 
       const previewCount = await col.countDocuments(filter);
       if (previewCount === 0) {
-        return NextResponse.json({ message: "No documents matched — nothing deleted.", operation, filter, results: [], count: 0 });
+        return NextResponse.json({ message: "No documents matched - nothing deleted.", operation, filter, results: [], count: 0 });
       }
 
       const result = await col.deleteMany(filter);

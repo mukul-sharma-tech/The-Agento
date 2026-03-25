@@ -71,7 +71,7 @@ export const sendSubscriptionRequestEmail = async (
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2>New Subscription Request — Agento</h2>
+      <h2>New Subscription Request - Agento</h2>
       <p>A user has requested a plan upgrade. Please review and approve or reject from the Admin Dashboard.</p>
       <table style="border-collapse:collapse;width:100%">
         <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold">Name</td><td style="padding:8px;border:1px solid #ddd">${userName}</td></tr>
@@ -87,7 +87,7 @@ export const sendSubscriptionRequestEmail = async (
       <p style="color:#888;font-size:12px">You can reply to this email to contact the user directly at ${userEmail}.</p>
     </div>
   `;
-  return sendEmail(adminMail, `[Agento] Subscription Request: ${plan} — ${userName}`, html);
+  return sendEmail(adminMail, `[Agento] Subscription Request: ${plan} - ${userName}`, html);
 };
 
 /** Sent to user when admin approves their subscription */
@@ -99,7 +99,7 @@ export const sendSubscriptionApprovedEmail = async (
 ) => {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2>Your ${plan} Plan is Active — Agento</h2>
+      <h2>Your ${plan} Plan is Active - Agento</h2>
       <p>Hi ${userName}, your subscription request has been approved!</p>
       <p><strong>Plan:</strong> ${plan}</p>
       <p><strong>Valid until:</strong> ${tokenExpiry.toDateString()}</p>
@@ -121,7 +121,7 @@ export const sendSubscriptionRejectedEmail = async (
   const adminMail = process.env.ADMIN_MAIL || "support@agento.ai";
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2>Subscription Request Update — Agento</h2>
+      <h2>Subscription Request Update - Agento</h2>
       <p>Hi ${userName}, unfortunately your request for the <strong>${plan}</strong> plan was not approved at this time.</p>
       <p>If you have questions, reply to this email or contact us at <a href="mailto:${adminMail}">${adminMail}</a>.</p>
     </div>
@@ -130,9 +130,9 @@ export const sendSubscriptionRejectedEmail = async (
 };
 
 const PLAN_PRICES: Record<string, string> = {
-  "pro-chat":  "₹350",
+  "pro-chat": "₹350",
   "pro-query": "₹350",
-  "business":  "₹699",
+  "business": "₹699",
 };
 
 /** Sent to user immediately after they submit a subscription request */
@@ -148,7 +148,7 @@ export const sendSubscriptionQueuedEmail = async (
 
   const html = `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#1e293b">
-      <h2 style="color:#4f46e5">Your request is in queue — Agento</h2>
+      <h2 style="color:#4f46e5">Your request is in queue - Agento</h2>
       <p>Hi ${userName},</p>
       <p>We've received your subscription request for the <strong>${planLabel}</strong> plan. 🎉</p>
 
@@ -165,8 +165,8 @@ export const sendSubscriptionQueuedEmail = async (
         <a href="mailto:${adminMail}" style="color:#4f46e5">${adminMail}</a>
       </p>
 
-      <p>— Team Agento</p>
+      <p>- Team Agento</p>
     </div>
   `;
-  return sendEmail(userEmail, `[Agento] Your ${planLabel} request is in queue — complete payment to activate`, html);
+  return sendEmail(userEmail, `[Agento] Your ${planLabel} request is in queue - complete payment to activate`, html);
 };

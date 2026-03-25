@@ -140,6 +140,12 @@ export default function ChatPage() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    if (window.innerWidth < 768) {
+      setSidebarOpen(false);
+    }
+  }, []);
+
   useEffect(() => { if (status === "unauthenticated") router.push("/login"); }, [status, router]);
 
   useEffect(() => {
@@ -184,6 +190,7 @@ export default function ChatPage() {
       setActiveSessionId(d.session._id);
       setMessages([]);
       setError("");
+      if (window.innerWidth < 768) setSidebarOpen(false);
     }
   };
 
@@ -199,6 +206,7 @@ export default function ChatPage() {
         mermaidCode: m.mermaidCode,
         citations: m.citations || [],
       })));
+      if (window.innerWidth < 768) setSidebarOpen(false);
     }
   };
 
@@ -323,7 +331,13 @@ export default function ChatPage() {
       <div className="relative z-10 flex flex-1 overflow-hidden">
 
         {/* ── SIDEBAR ── */}
-        <aside className={`flex-shrink-0 flex flex-col border-r border-slate-200/60 dark:border-slate-700/60 bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl overflow-hidden transition-all duration-300 ${sidebarOpen ? 'w-64' : 'w-0 border-r-0'}`}>
+        {sidebarOpen && (
+          <div 
+            className="absolute inset-0 z-10 bg-slate-900/20 dark:bg-black/40 backdrop-blur-sm md:hidden" 
+            onClick={() => setSidebarOpen(false)} 
+          />
+        )}
+        <aside className={`absolute md:static z-20 h-full flex-shrink-0 flex flex-col border-r border-slate-200/60 dark:border-slate-700/60 bg-white drop-shadow-xl md:drop-shadow-none md:bg-white/40 dark:bg-slate-900 md:dark:bg-slate-900/40 backdrop-blur-xl overflow-hidden transition-all duration-300 ${sidebarOpen ? 'w-64' : 'w-0 border-r-0'}`}>
           <div className="p-3 border-b border-slate-200/60 dark:border-slate-700/60">
             <Button onClick={createNewChat} className="w-full h-9 bg-slate-800 text-white dark:bg-slate-700/60 dark:text-slate-100 border border-black/10 dark:border-white/10 hover:bg-slate-700 text-sm">
               <PlusCircle className="w-4 h-4 mr-2" /> New Chat

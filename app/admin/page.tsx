@@ -36,15 +36,15 @@ type Tab = "employees" | "subscriptions";
 type SubTab = "pending" | "approved" | "rejected";
 
 const PLAN_LABEL: Record<string, string> = {
-  "pro-chat":  "Pro · AI Chat + Voice",
+  "pro-chat": "Pro · AI Chat + Voice",
   "pro-query": "Pro · Query Genius",
-  "business":  "Business",
+  "business": "Business",
 };
 
 const PLAN_COLOR: Record<string, string> = {
-  "pro-chat":  "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300",
+  "pro-chat": "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300",
   "pro-query": "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300",
-  "business":  "bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300",
+  "business": "bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300",
 };
 
 export default function AdminPage() {
@@ -52,6 +52,7 @@ export default function AdminPage() {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("employees");
   const [subTab, setSubTab] = useState<SubTab>("pending");
+  const [empTab, setEmpTab] = useState<"pending" | "verified">("pending");
   const [pendingEmployees, setPendingEmployees] = useState<Employee[]>([]);
   const [verifiedEmployees, setVerifiedEmployees] = useState<Employee[]>([]);
   const [subRequests, setSubRequests] = useState<SubRequest[]>([]);
@@ -148,10 +149,12 @@ export default function AdminPage() {
 
   if (!session?.user || session.user.role !== "admin") return null;
 
-  const pendingSubs   = subRequests.filter(r => r.status === "pending");
-  const approvedSubs  = subRequests.filter(r => r.status === "approved");
-  const rejectedSubs  = subRequests.filter(r => r.status === "rejected");
-  const visibleSubs   = subTab === "pending" ? pendingSubs : subTab === "approved" ? approvedSubs : rejectedSubs;
+  const pendingSubs = subRequests.filter(r => r.status === "pending");
+  const approvedSubs = subRequests.filter(r => r.status === "approved");
+  const rejectedSubs = subRequests.filter(r => r.status === "rejected");
+  const visibleSubs = subTab === "pending" ? pendingSubs : subTab === "approved" ? approvedSubs : rejectedSubs;
+
+  const isSuperAdmin = session?.user?.email === process.env.NEXT_PUBLIC_ADMIN_MAIL;
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-slate-100 dark:bg-[#0b1220]">
@@ -163,28 +166,30 @@ export default function AdminPage() {
         <div className="max-w-6xl mx-auto">
 
           {/* Header */}
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
             <div>
               <h1 className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-3">
-                <Shield className="w-8 h-8 text-blue-500" /> Admin Dashboard
+                <Shield className="flex-shrink-0 w-8 h-8 text-blue-500" /> <span className="truncate">Admin Dashboard</span>
               </h1>
               <p className="text-slate-600 dark:text-slate-400 mt-1">
                 Manage employees and subscriptions
               </p>
             </div>
             <Button onClick={() => router.push("/dashboard")}
-              className="h-10 px-6 bg-transparent text-slate-700 dark:text-slate-300 border border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5">
+              className="w-full md:w-auto h-10 px-6 bg-transparent text-slate-700 dark:text-slate-300 border border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5">
               Back to Dashboard
             </Button>
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <div className={`grid grid-cols-2 ${isSuperAdmin ? "md:grid-cols-4" : ""} gap-4 mb-8`}>
             {[
               { label: "Pending Employees", value: pendingEmployees.length, icon: <Clock className="h-4 w-4 text-yellow-500" /> },
               { label: "Verified Employees", value: verifiedEmployees.length, icon: <Users className="h-4 w-4 text-green-500" /> },
-              { label: "Pending Subscriptions", value: pendingSubs.length, icon: <Bell className="h-4 w-4 text-orange-500" /> },
-              { label: "Active Subscriptions", value: approvedSubs.length, icon: <CreditCard className="h-4 w-4 text-indigo-500" /> },
+              ...(isSuperAdmin ? [
+                { label: "Pending Subscriptions", value: pendingSubs.length, icon: <Bell className="h-4 w-4 text-orange-500" /> },
+                { label: "Active Subscriptions", value: approvedSubs.length, icon: <CreditCard className="h-4 w-4 text-indigo-500" /> }
+              ] : [])
             ].map(s => (
               <Card key={s.label} className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-xl border-black/10 dark:border-white/10 shadow-lg">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -197,7 +202,7 @@ export default function AdminPage() {
           </div>
 
           {/* Main tabs */}
-          <div className="flex gap-2 mb-6">
+          <div className="flex flex-wrap gap-2 mb-6">
             <button onClick={() => setTab("employees")}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${tab === "employees" ? "bg-blue-600 text-white shadow-lg" : "bg-white/60 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 border border-black/10 dark:border-white/10 hover:bg-white/80"}`}>
               <Users className="w-4 h-4" /> Employees
@@ -205,101 +210,115 @@ export default function AdminPage() {
                 <span className="ml-1 px-1.5 py-0.5 rounded-full bg-yellow-400 text-yellow-900 text-xs font-bold">{pendingEmployees.length}</span>
               )}
             </button>
-            <button onClick={() => setTab("subscriptions")}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${tab === "subscriptions" ? "bg-indigo-600 text-white shadow-lg" : "bg-white/60 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 border border-black/10 dark:border-white/10 hover:bg-white/80"}`}>
-              <CreditCard className="w-4 h-4" /> Subscriptions
-              {pendingSubs.length > 0 && (
-                <span className="ml-1 px-1.5 py-0.5 rounded-full bg-orange-400 text-orange-900 text-xs font-bold">{pendingSubs.length}</span>
-              )}
-            </button>
+            {isSuperAdmin && (
+              <button onClick={() => setTab("subscriptions")}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${tab === "subscriptions" ? "bg-indigo-600 text-white shadow-lg" : "bg-white/60 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 border border-black/10 dark:border-white/10 hover:bg-white/80"}`}>
+                <CreditCard className="w-4 h-4" /> Subscriptions
+                {pendingSubs.length > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 rounded-full bg-orange-400 text-orange-900 text-xs font-bold">{pendingSubs.length}</span>
+                )}
+              </button>
+            )}
           </div>
 
           {/* ── EMPLOYEES TAB ── */}
           {tab === "employees" && (
             <>
-              <Card className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-xl border-black/10 dark:border-white/10 shadow-lg mb-6">
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2 text-slate-900 dark:text-slate-100">
-                    <Clock className="w-5 h-5 text-yellow-500" /> Pending Verification
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {pendingEmployees.length === 0 ? (
-                    <p className="text-slate-500 text-center py-6">No pending employees</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {pendingEmployees.map(emp => (
-                        <div key={emp._id} className="flex items-center justify-between p-4 bg-slate-100/50 dark:bg-slate-700/50 rounded-xl border border-black/5 dark:border-white/5">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full bg-slate-200 dark:bg-slate-600 flex items-center justify-center">
-                              <User className="w-4 h-4 text-slate-600 dark:text-slate-300" />
-                            </div>
-                            <div>
-                              <p className="font-medium text-slate-900 dark:text-slate-100">{emp.name}</p>
-                              <p className="text-sm text-slate-500">{emp.email}</p>
-                              <p className="text-xs text-slate-400 mt-0.5">Joined {new Date(emp.createdAt).toLocaleDateString()}</p>
-                            </div>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button onClick={() => handleEmployeeAction(emp._id, "reject")} disabled={actionLoading === emp._id}
-                              className="h-9 px-4 bg-transparent text-red-600 border border-red-300 dark:border-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 text-sm">
-                              <X className="w-3.5 h-3.5 mr-1" /> Reject
-                            </Button>
-                            <Button onClick={() => handleEmployeeAction(emp._id, "verify")} disabled={actionLoading === emp._id}
-                              className="h-9 px-4 bg-green-600 text-white hover:bg-green-700 text-sm">
-                              {actionLoading === emp._id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5 mr-1" />}
-                              Verify
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              {/* Employee Sub-tabs */}
+              <div className="flex flex-wrap gap-2 mb-5">
+                {([
+                  { key: "pending", label: "Pending Verification", icon: <Clock className="w-3.5 h-3.5" />, count: pendingEmployees.length, color: "bg-yellow-500" },
+                  { key: "verified", label: "Verified Employees", icon: <Check className="w-3.5 h-3.5" />, count: verifiedEmployees.length, color: "bg-green-500" },
+                ] as const).map(st => (
+                  <button key={st.key} onClick={() => setEmpTab(st.key)}
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${empTab === st.key ? `${st.color} text-white shadow` : "bg-white/60 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 border border-black/10 dark:border-white/10 hover:bg-white/80"}`}>
+                    {st.icon} {st.label}
+                    {st.count > 0 && (
+                      <span className={`ml-1 px-1.5 py-0.5 rounded-full text-xs font-bold ${empTab === st.key ? "bg-white/30 text-white" : "bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300"}`}>
+                        {st.count}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
 
-              <Card className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-xl border-black/10 dark:border-white/10 shadow-lg">
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2 text-slate-900 dark:text-slate-100">
-                    <Check className="w-5 h-5 text-green-500" /> Verified Employees
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {verifiedEmployees.length === 0 ? (
-                    <p className="text-slate-500 text-center py-6">No verified employees yet</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {verifiedEmployees.map(emp => (
-                        <div key={emp._id} className="flex items-center justify-between p-4 bg-slate-100/50 dark:bg-slate-700/50 rounded-xl border border-black/5 dark:border-white/5">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                              <User className="w-4 h-4 text-green-600 dark:text-green-400" />
+              {empTab === "pending" && (
+                <Card className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-xl border-black/10 dark:border-white/10 shadow-lg mb-6">
+                  <CardContent className="pt-6">
+                    {pendingEmployees.length === 0 ? (
+                      <p className="text-slate-500 text-center py-6">No pending employees</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {pendingEmployees.map(emp => (
+                          <div key={emp._id} className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 md:gap-0 p-4 bg-slate-100/50 dark:bg-slate-700/50 rounded-xl border border-black/5 dark:border-white/5">
+                            <div className="flex items-center gap-3 w-full md:w-auto overflow-hidden">
+                              <div className="w-9 h-9 flex-shrink-0 rounded-full bg-slate-200 dark:bg-slate-600 flex items-center justify-center">
+                                <User className="w-4 h-4 text-slate-600 dark:text-slate-300" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="font-medium text-slate-900 dark:text-slate-100 truncate">{emp.name}</p>
+                                <p className="text-sm text-slate-500 truncate">{emp.email}</p>
+                                <p className="text-xs text-slate-400 mt-0.5 truncate">Joined {new Date(emp.createdAt).toLocaleDateString()}</p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="font-medium text-slate-900 dark:text-slate-100">{emp.name}</p>
-                              <p className="text-sm text-slate-500">{emp.email}</p>
-                              <p className="text-xs text-slate-400 mt-0.5">Verified {new Date(emp.verifiedAt || emp.createdAt).toLocaleDateString()}</p>
+                            <div className="grid grid-cols-2 md:flex w-full md:w-auto gap-2">
+                              <Button onClick={() => handleEmployeeAction(emp._id, "reject")} disabled={actionLoading === emp._id}
+                                className="h-9 px-4 w-full md:w-auto bg-transparent text-red-600 border border-red-300 dark:border-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 text-sm">
+                                <X className="w-3.5 h-3.5 flex-shrink-0 mr-1" /> Reject
+                              </Button>
+                              <Button onClick={() => handleEmployeeAction(emp._id, "verify")} disabled={actionLoading === emp._id}
+                                className="h-9 px-4 w-full md:w-auto bg-green-600 text-white hover:bg-green-700 text-sm">
+                                {actionLoading === emp._id ? <Loader2 className="w-3.5 h-3.5 flex-shrink-0 animate-spin mr-1" /> : <Check className="w-3.5 h-3.5 flex-shrink-0 mr-1" />}
+                                Verify
+                              </Button>
                             </div>
                           </div>
-                          <span className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-xs font-semibold">Verified</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {empTab === "verified" && (
+                <Card className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-xl border-black/10 dark:border-white/10 shadow-lg mb-6">
+                  <CardContent className="pt-6">
+                    {verifiedEmployees.length === 0 ? (
+                      <p className="text-slate-500 text-center py-6">No verified employees yet</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {verifiedEmployees.map(emp => (
+                          <div key={emp._id} className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 md:gap-0 p-4 bg-slate-100/50 dark:bg-slate-700/50 rounded-xl border border-black/5 dark:border-white/5">
+                            <div className="flex items-center gap-3 w-full md:w-auto overflow-hidden">
+                              <div className="w-9 h-9 flex-shrink-0 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                                <User className="w-4 h-4 text-green-600 dark:text-green-400" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="font-medium text-slate-900 dark:text-slate-100 truncate">{emp.name}</p>
+                                <p className="text-sm text-slate-500 truncate">{emp.email}</p>
+                                <p className="text-xs text-slate-400 mt-0.5">Verified {new Date(emp.verifiedAt || emp.createdAt).toLocaleDateString()}</p>
+                              </div>
+                            </div>
+                            <span className="self-end md:self-auto px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-xs font-semibold">Verified</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
             </>
           )}
 
           {/* ── SUBSCRIPTIONS TAB ── */}
-          {tab === "subscriptions" && (
+          {tab === "subscriptions" && isSuperAdmin && (
             <>
               {/* Sub-tabs */}
-              <div className="flex gap-2 mb-5">
+              <div className="flex flex-wrap gap-2 mb-5">
                 {([
-                  { key: "pending",  label: "Pending",  icon: <Timer className="w-3.5 h-3.5" />,        count: pendingSubs.length,  color: "bg-orange-500" },
+                  { key: "pending", label: "Pending", icon: <Timer className="w-3.5 h-3.5" />, count: pendingSubs.length, color: "bg-orange-500" },
                   { key: "approved", label: "Approved", icon: <CheckCircle2 className="w-3.5 h-3.5" />, count: approvedSubs.length, color: "bg-green-500" },
-                  { key: "rejected", label: "Rejected", icon: <XCircle className="w-3.5 h-3.5" />,      count: rejectedSubs.length, color: "bg-red-500" },
+                  { key: "rejected", label: "Rejected", icon: <XCircle className="w-3.5 h-3.5" />, count: rejectedSubs.length, color: "bg-red-500" },
                 ] as const).map(st => (
                   <button key={st.key} onClick={() => setSubTab(st.key)}
                     className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${subTab === st.key ? `${st.color} text-white shadow` : "bg-white/60 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 border border-black/10 dark:border-white/10 hover:bg-white/80"}`}>
@@ -320,15 +339,15 @@ export default function AdminPage() {
                   ) : (
                     <div className="space-y-3">
                       {visibleSubs.map(req => (
-                        <div key={req._id} className="flex items-center justify-between p-4 bg-slate-100/50 dark:bg-slate-700/50 rounded-xl border border-black/5 dark:border-white/5">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
+                        <div key={req._id} className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 md:gap-0 p-4 bg-slate-100/50 dark:bg-slate-700/50 rounded-xl border border-black/5 dark:border-white/5">
+                          <div className="flex items-start md:items-center gap-3 w-full md:w-auto overflow-hidden">
+                            <div className="w-9 h-9 flex-shrink-0 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center mt-1 md:mt-0">
                               <CreditCard className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                             </div>
-                            <div>
-                              <p className="font-medium text-slate-900 dark:text-slate-100">{req.userName}</p>
-                              <a href={`mailto:${req.userEmail}`} className="text-sm text-indigo-500 hover:underline">{req.userEmail}</a>
-                              <div className="flex items-center gap-2 mt-1">
+                            <div className="min-w-0">
+                              <p className="font-medium text-slate-900 dark:text-slate-100 truncate">{req.userName}</p>
+                              <a href={`mailto:${req.userEmail}`} className="text-sm text-indigo-500 hover:underline truncate block">{req.userEmail}</a>
+                              <div className="flex flex-wrap items-center gap-2 mt-1.5">
                                 <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${PLAN_COLOR[req.plan] ?? "bg-slate-100 text-slate-600"}`}>
                                   {PLAN_LABEL[req.plan] ?? req.plan}
                                 </span>
@@ -344,37 +363,37 @@ export default function AdminPage() {
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-2">
-                            {/* Pending — approve / reject */}
+                          <div className="flex items-center justify-end w-full md:w-auto gap-2">
+                            {/* Pending - approve / reject */}
                             {req.status === "pending" && (
-                              <>
+                              <div className="grid grid-cols-2 md:flex w-full md:w-auto gap-2">
                                 <Button onClick={() => handleSubAction(req._id, "reject")} disabled={!!actionLoading}
-                                  className="h-9 px-4 bg-transparent text-red-600 border border-red-300 dark:border-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 text-sm">
-                                  <X className="w-3.5 h-3.5 mr-1" /> Reject
+                                  className="h-9 px-4 w-full md:w-auto bg-transparent text-red-600 border border-red-300 dark:border-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 text-sm">
+                                  <X className="w-3.5 h-3.5 mr-1 flex-shrink-0" /> Reject
                                 </Button>
                                 <Button onClick={() => handleSubAction(req._id, "approve")} disabled={!!actionLoading}
-                                  className="h-9 px-4 bg-indigo-600 text-white hover:bg-indigo-700 text-sm">
-                                  {actionLoading === req._id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5 mr-1" />}
+                                  className="h-9 px-4 w-full md:w-auto bg-indigo-600 text-white hover:bg-indigo-700 text-sm">
+                                  {actionLoading === req._id ? <Loader2 className="w-3.5 h-3.5 animate-spin flex-shrink-0 mr-1" /> : <Check className="w-3.5 h-3.5 mr-1 flex-shrink-0" />}
                                   Approve
                                 </Button>
-                              </>
+                              </div>
                             )}
 
-                            {/* Approved — status badge */}
+                            {/* Approved - status badge */}
                             {req.status === "approved" && (
                               <span className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-xs font-semibold">
                                 Active
                               </span>
                             )}
 
-                            {/* Rejected — status badge */}
+                            {/* Rejected - status badge */}
                             {req.status === "rejected" && (
                               <span className="px-3 py-1 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full text-xs font-semibold">
                                 Rejected
                               </span>
                             )}
 
-                            {/* Delete button — always visible for non-pending */}
+                            {/* Delete button - always visible for non-pending */}
                             {req.status !== "pending" && (
                               confirmDelete === req._id ? (
                                 <div className="flex gap-1">

@@ -45,7 +45,7 @@ function FloatCard({ children, className = "" }: { children: React.ReactNode; cl
 const FEATURES = [
   { icon: <Brain className="w-6 h-6" />, title: "Agentic RAG", desc: "Multi-step reasoning over your documents. Agento does not just retrieve, it thinks.", color: "from-indigo-500 to-blue-500" },
   { icon: <Mic className="w-6 h-6" />, title: "Voice Call Mode", desc: "Talk to your knowledge base naturally. Real-time voice queries with instant answers.", color: "from-violet-500 to-purple-500" },
-  { icon: <BarChart3 className="w-6 h-6" />, title: "Query Genius", desc: "Natural language to SQL. Explore your structured data without writing a single query.", color: "from-cyan-500 to-teal-500" },
+  { icon: <BarChart3 className="w-6 h-6" />, title: "Query Genius", desc: "Natural language to Data Analysis. Explore your structured data without writing a single query.", color: "from-cyan-500 to-teal-500" },
   { icon: <Database className="w-6 h-6" />, title: "Smart Ingestion", desc: "Upload PDFs, docs, spreadsheets. Agento chunks, embeds, and indexes automatically.", color: "from-amber-500 to-orange-500" },
   { icon: <MessageSquare className="w-6 h-6" />, title: "Chat with Citations", desc: "Every answer links back to the source. Know exactly where your insights come from.", color: "from-green-500 to-emerald-500" },
   { icon: <Lock className="w-6 h-6" />, title: "Company-Scoped", desc: "Your data stays yours. Isolated per company, role-based access, admin controls.", color: "from-rose-500 to-pink-500" },
@@ -55,7 +55,7 @@ const STATS = [
   { value: "10x", label: "Faster document search" },
   { value: "99%", label: "Answer accuracy" },
   { value: "<2s", label: "Average response time" },
-  { value: "Inf", label: "Documents supported" },
+  { value: "All", label: "Documents supported" },
 ];
 
 export default function LandingPage() {
@@ -114,7 +114,7 @@ export default function LandingPage() {
             </div>
             <div className="text-sm font-semibold text-slate-800">Show Q3 revenue</div>
             <div className="mt-2 flex gap-0.5 items-end h-6">
-              {[3,5,8,4,7,9,5,3,6,8,4,6].map((h, i) => (
+              {[3, 5, 8, 4, 7, 9, 5, 3, 6, 8, 4, 6].map((h, i) => (
                 <div key={i} className="flex-1 rounded-sm bg-violet-400/70" style={{ height: `${h * 3}px` }} />
               ))}
             </div>
@@ -144,40 +144,40 @@ export default function LandingPage() {
         </div>
 
         <div className="relative z-10 text-center max-w-4xl mx-auto">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-600 text-sm font-medium mb-8 animate-fade-in">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-600 text-sm font-medium mb-6 md:mb-8 animate-fade-in">
             <Sparkles className="w-3.5 h-3.5" /> Agentic AI for your company knowledge
           </div>
 
-          <h1 className="text-5xl md:text-7xl font-bold tracking-tight leading-tight mb-6 animate-fade-up text-slate-900">
+          <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold tracking-tight leading-tight mb-4 md:mb-6 animate-fade-up text-slate-900">
             Your documents,{" "}
             <span className="gradient-text">thinking for you</span>
           </h1>
 
-          <p className="text-lg md:text-xl text-slate-600 max-w-2xl mx-auto mb-10 animate-fade-up delay-200">
+          <p className="text-base sm:text-lg md:text-xl text-slate-600 max-w-2xl mx-auto mb-8 md:mb-10 animate-fade-up delay-200">
             Agento is an agentic RAG engine that lets your team chat, call, and query across all company documents with AI that reasons, not just retrieves.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-up delay-300">
+          <div className="flex flex-col items-center sm:flex-row gap-4 justify-center animate-fade-up delay-300">
             {status === "authenticated" ? (
               <button onClick={() => router.push("/dashboard")}
-                className="group flex items-center gap-2 px-8 py-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-semibold text-lg hover:from-indigo-500 hover:to-violet-500 transition-all hover:-translate-y-1 hover:shadow-[0_20px_60px_rgba(99,102,241,0.35)]">
+                className="group flex items-center justify-center gap-2 px-6 py-3.5 md:px-8 md:py-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-semibold text-base md:text-lg hover:from-indigo-500 hover:to-violet-500 transition-all hover:-translate-y-1 hover:shadow-[0_20px_60px_rgba(99,102,241,0.35)] w-full sm:w-auto">
                 Go to Dashboard <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </button>
             ) : (
               <>
                 <button onClick={() => router.push("/signup")}
-                  className="group flex items-center gap-2 px-8 py-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-semibold text-lg hover:from-indigo-500 hover:to-violet-500 transition-all hover:-translate-y-1 hover:shadow-[0_20px_60px_rgba(99,102,241,0.35)]">
+                  className="group flex items-center justify-center gap-2 px-6 py-3.5 md:px-8 md:py-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-semibold text-base md:text-lg hover:from-indigo-500 hover:to-violet-500 transition-all hover:-translate-y-1 hover:shadow-[0_20px_60px_rgba(99,102,241,0.35)] w-full sm:w-auto">
                   Get Started Free <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </button>
                 <button onClick={() => router.push("/login")}
-                  className="px-8 py-4 rounded-2xl border border-slate-300 text-slate-700 font-semibold text-lg hover:bg-slate-100 hover:border-slate-400 transition-all">
+                  className="px-6 py-3.5 md:px-8 md:py-4 rounded-2xl border border-slate-300 text-slate-700 font-semibold text-base md:text-lg hover:bg-slate-100 hover:border-slate-400 transition-all w-full sm:w-auto">
                   Sign In
                 </button>
               </>
             )}
           </div>
 
-          <div className="mt-16 flex justify-center animate-fade-in delay-500">
+          <div className="mt-10 md:mt-16 flex justify-center animate-fade-in delay-500">
             <div className="relative">
               <div className="absolute inset-0 flex justify-center items-center">
                 <div className="w-40 h-40 rounded-full blur-[60px] bg-indigo-300/50" />
@@ -194,13 +194,13 @@ export default function LandingPage() {
       </section>
 
       {/* STATS */}
-      <section className="py-20 px-6 border-y border-slate-200 bg-white">
+      <section className="py-6 md:py-12 px-4 md:px-6 border-y border-slate-200 bg-white">
         <FadeSection>
-          <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8">
+          <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
             {STATS.map((s, i) => (
               <div key={i} className="text-center">
-                <div className="text-4xl md:text-5xl font-bold gradient-text mb-2">{s.value}</div>
-                <div className="text-slate-600 text-sm font-medium">{s.label}</div>
+                <div className="text-3xl sm:text-4xl md:text-5xl font-bold gradient-text mb-1 md:mb-2">{s.value}</div>
+                <div className="text-slate-600 text-xs sm:text-sm font-medium">{s.label}</div>
               </div>
             ))}
           </div>
@@ -208,26 +208,27 @@ export default function LandingPage() {
       </section>
 
       {/* FEATURES */}
-      <section className="py-28 px-6 bg-slate-50">
+      <section className="py-8 md:py-16 px-4 md:px-6 bg-slate-50">
         <div className="max-w-6xl mx-auto">
           <FadeSection>
-            <div className="text-center mb-16">
+            <div className="text-center mb-10 md:mb-16">
               <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-violet-50 border border-violet-200 text-violet-700 text-sm font-medium mb-5">
                 <Zap className="w-3.5 h-3.5" /> Everything your team needs
               </div>
-              <h2 className="text-4xl md:text-5xl font-bold mb-4 text-slate-900">
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-3 md:mb-4 text-slate-900">
                 Built for how teams <span className="gradient-text">actually work</span>
               </h2>
-              <p className="text-slate-600 text-lg max-w-xl mx-auto">
+              <p className="text-slate-600 text-base md:text-lg max-w-xl mx-auto px-2">
                 From chat to voice to SQL, one platform, all your knowledge.
               </p>
             </div>
           </FadeSection>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Desktop Grid */}
+          <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {FEATURES.map((f, i) => (
               <FadeSection key={i}>
-                <div className="card-3d group relative rounded-2xl bg-white border border-slate-200 p-6 hover:border-slate-300 hover:shadow-lg transition-all duration-300 cursor-default overflow-hidden">
+                <div className="card-3d group relative rounded-2xl bg-white border border-slate-200 p-6 hover:border-slate-300 hover:shadow-lg transition-all duration-300 cursor-default overflow-hidden h-full">
                   <div className={`absolute inset-0 opacity-0 group-hover:opacity-[0.04] transition-opacity bg-gradient-to-br ${f.color} rounded-2xl`} />
                   <div className={`inline-flex p-3 rounded-xl bg-gradient-to-br ${f.color} mb-4 shadow-md`}>
                     <span className="text-white">{f.icon}</span>
@@ -238,21 +239,45 @@ export default function LandingPage() {
               </FadeSection>
             ))}
           </div>
+
+          {/* Mobile Sliding Marquee */}
+          <div className="flex md:hidden overflow-x-auto snap-x snap-mandatory gap-4 pb-6 -mx-4 px-4 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
+            <div className="flex w-max gap-4 animate-[marquee_25s_linear_infinite] hover:[animation-play-state:paused] active:[animation-play-state:paused]">
+              {/* Double the elements for smooth infinite scrolling */}
+              {[...FEATURES, ...FEATURES].map((f, i) => (
+                <div key={i} className="flex-none w-[280px] snap-center">
+                  <div className="card-3d group relative rounded-2xl bg-white border border-slate-200 p-6 shadow-sm overflow-hidden h-full whitespace-normal">
+                    <div className={`absolute inset-0 opacity-0 bg-gradient-to-br ${f.color} rounded-2xl`} />
+                    <div className={`inline-flex p-3 rounded-xl bg-gradient-to-br ${f.color} mb-4 shadow-md`}>
+                      <span className="text-white">{f.icon}</span>
+                    </div>
+                    <h3 className="text-lg font-semibold text-slate-900 mb-2">{f.title}</h3>
+                    <p className="text-slate-600 text-sm leading-relaxed">{f.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <style dangerouslySetInnerHTML={{
+            __html: `
+            @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+          `}} />
         </div>
       </section>
 
       {/* HOW IT WORKS */}
-      <section className="py-28 px-6 bg-white border-y border-slate-200">
+      <section className="py-8 md:py-16 px-4 md:px-6 bg-white border-y border-slate-200">
         <div className="max-w-5xl mx-auto">
           <FadeSection>
-            <div className="text-center mb-16">
-              <h2 className="text-4xl md:text-5xl font-bold mb-4 text-slate-900">
+            <div className="text-center mb-10 md:mb-16">
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 text-slate-900">
                 Up and running in <span className="gradient-text-gold">3 steps</span>
               </h2>
             </div>
           </FadeSection>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {/* Desktop Grid */}
+          <div className="hidden md:grid grid-cols-3 gap-8">
             {[
               { step: "01", icon: <FileText className="w-8 h-8" />, title: "Upload your docs", desc: "PDFs, Word files, spreadsheets, drag and drop. Agento handles chunking and embedding automatically." },
               { step: "02", icon: <Brain className="w-8 h-8" />, title: "Agento learns", desc: "Our agentic pipeline indexes your content, builds a knowledge graph, and prepares multi-step reasoning." },
@@ -273,20 +298,45 @@ export default function LandingPage() {
               </FadeSection>
             ))}
           </div>
+
+          {/* Mobile Sliding Marquee */}
+          <div className="flex md:hidden overflow-x-auto snap-x snap-mandatory gap-4 pb-6 -mx-4 px-4 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
+            <div className="flex w-max gap-4 animate-[marquee_20s_linear_infinite] hover:[animation-play-state:paused] active:[animation-play-state:paused]">
+              {[
+                { step: "01", icon: <FileText className="w-8 h-8" />, title: "Upload your docs", desc: "PDFs, Word files, spreadsheets, drag and drop. Agento handles chunking and embedding automatically." },
+                { step: "02", icon: <Brain className="w-8 h-8" />, title: "Agento learns", desc: "Our agentic pipeline indexes your content, builds a knowledge graph, and prepares multi-step reasoning." },
+                { step: "03", icon: <Globe className="w-8 h-8" />, title: "Ask anything", desc: "Chat, call, or query. Get cited answers in seconds. Share insights with your whole team." },
+                { step: "01", icon: <FileText className="w-8 h-8" />, title: "Upload your docs", desc: "PDFs, Word files, spreadsheets, drag and drop. Agento handles chunking and embedding automatically." },
+                { step: "02", icon: <Brain className="w-8 h-8" />, title: "Agento learns", desc: "Our agentic pipeline indexes your content, builds a knowledge graph, and prepares multi-step reasoning." },
+                { step: "03", icon: <Globe className="w-8 h-8" />, title: "Ask anything", desc: "Chat, call, or query. Get cited answers in seconds. Share insights with your whole team." },
+              ].map((s, i) => (
+                <div key={i} className="flex-none w-[280px] snap-center">
+                  <div className="relative text-center card-3d bg-white border border-slate-200 rounded-2xl p-6 shadow-sm h-full whitespace-normal">
+                    <div className="relative inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-50 to-violet-50 border border-indigo-200 mb-4 text-indigo-600">
+                      {s.icon}
+                      <span className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-indigo-600 text-white text-[10px] font-bold flex items-center justify-center">{s.step}</span>
+                    </div>
+                    <h3 className="text-lg font-semibold text-slate-900 mb-2">{s.title}</h3>
+                    <p className="text-slate-600 text-sm leading-relaxed">{s.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
       {/* CTA */}
-      <section className="py-28 px-6 bg-slate-50">
+      <section className="py-8 md:py-16 px-4 md:px-6 bg-slate-50">
         <FadeSection>
           <div className="max-w-3xl mx-auto text-center">
-            <div className="relative rounded-3xl bg-gradient-to-br from-indigo-600 to-violet-600 p-12 overflow-hidden shadow-2xl shadow-indigo-200">
+            <div className="relative rounded-3xl bg-gradient-to-br from-indigo-600 to-violet-600 p-8 md:p-12 overflow-hidden shadow-2xl shadow-indigo-200/50">
               <div className="absolute -top-20 -right-20 w-64 h-64 rounded-full blur-[80px] bg-white/10" />
               <div className="absolute -bottom-20 -left-20 w-64 h-64 rounded-full blur-[80px] bg-white/10" />
               <div className="relative z-10">
                 <Sparkles className="w-10 h-10 text-indigo-200 mx-auto mb-4" />
-                <h2 className="text-4xl font-bold mb-4 text-white">Ready to get started?</h2>
-                <p className="text-indigo-100 mb-8 text-lg">10 free AI calls per feature. No credit card required.</p>
+                <h2 className="text-3xl sm:text-4xl font-bold mb-3 md:mb-4 text-white">Ready to get started?</h2>
+                <p className="text-indigo-100 mb-6 md:mb-8 text-base md:text-lg">10 free AI calls per feature. No credit card required.</p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <button onClick={() => router.push(status === "authenticated" ? "/dashboard" : "/signup")}
                     className="group flex items-center justify-center gap-2 px-8 py-4 rounded-2xl bg-white text-indigo-700 font-semibold hover:bg-indigo-50 transition-all hover:-translate-y-1 hover:shadow-xl">
@@ -316,7 +366,7 @@ export default function LandingPage() {
             <button onClick={() => router.push("/login")} className="hover:text-slate-900 transition-colors">Login</button>
             <button onClick={() => router.push("/signup")} className="hover:text-slate-900 transition-colors">Sign Up</button>
           </div>
-          <p className="text-slate-500 text-xs">2025 Agento. All rights reserved.</p>
+          <p className="text-slate-500 text-xs">2026 Agento. All rights reserved.</p>
         </div>
       </footer>
 

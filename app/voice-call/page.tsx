@@ -141,6 +141,12 @@ export default function VoiceCallPage() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    if (window.innerWidth < 768) {
+      setSidebarOpen(false);
+    }
+  }, []);
   const recognitionRef = useRef<any>(null);
   const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const activeSessionIdRef = useRef<string | null>(null);
@@ -185,6 +191,7 @@ export default function VoiceCallPage() {
         setActiveSessionId(id);
         // End any active call when loading history
         if (isInCall) endCall();
+        if (window.innerWidth < 768) setSidebarOpen(false);
       }
     } catch { /* silent */ }
   };
@@ -419,14 +426,20 @@ export default function VoiceCallPage() {
       )}
 
       {/* Body: Sidebar + Globe + Chat */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
 
         {/* History Sidebar */}
-        <div className={`flex-shrink-0 flex flex-col border-r border-gray-700 bg-gray-800/40 transition-all duration-300 overflow-hidden ${sidebarOpen ? 'w-56' : 'w-0 border-r-0'}`}>
+        {sidebarOpen && (
+          <div 
+            className="absolute inset-0 z-10 bg-black/40 backdrop-blur-sm md:hidden" 
+            onClick={() => setSidebarOpen(false)} 
+          />
+        )}
+        <div className={`absolute md:static z-20 h-full flex-shrink-0 flex flex-col border-r border-gray-700 bg-gray-900 drop-shadow-xl md:drop-shadow-none md:bg-gray-800/40 transition-all duration-300 overflow-hidden ${sidebarOpen ? 'w-56' : 'w-0 border-r-0'}`}>
           <div className="flex items-center justify-between px-3 py-3 border-b border-gray-700">
             <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">History</span>
             <button
-              onClick={() => { clearChat(); if (isInCall) endCall(); }}
+              onClick={() => { clearChat(); if (isInCall) endCall(); if (window.innerWidth < 768) setSidebarOpen(false); }}
               className="p-1 rounded hover:bg-gray-700 text-gray-400 hover:text-white transition-colors"
               title="New session"
             >
@@ -465,18 +478,18 @@ export default function VoiceCallPage() {
         </div>
 
         {/* Globe & Controls */}
-        <div className="flex-1 flex flex-col items-center justify-center p-4 border-r border-gray-700 bg-gray-800/30">
-          <div className="relative w-72 h-72 flex-shrink-0 mb-6">
+        <div className="flex-shrink-0 md:flex-1 h-auto flex flex-col items-center justify-center py-6 px-4 md:border-r border-b md:border-b-0 border-gray-700 bg-gray-800/30">
+          <div className="relative w-28 h-28 md:w-72 md:h-72 flex-shrink-0 md:mb-6 mb-4 mt-2 md:mt-0">
             <div className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ${isSpeaking ? 'scale-110' : isListening ? 'scale-105' : 'scale-100'}`}>
               <Image
                 src="/globe.gif" alt="AI" width={400} height={400}
-                className={`${isSpeaking ? 'animate-spin-slow' : isListening ? 'animate-pulse' : ''} rounded-full opacity-90`}
+                className={`w-full h-full object-contain rounded-full opacity-90 ${isSpeaking ? 'animate-spin-slow' : isListening ? 'animate-pulse' : ''}`}
                 style={{ filter: isSpeaking ? 'drop-shadow(0 0 30px rgba(59,130,246,0.8))' : isListening ? 'drop-shadow(0 0 20px rgba(59,130,246,0.5))' : 'drop-shadow(0 0 10px rgba(59,130,246,0.3))' }}
               />
             </div>
           </div>
 
-          <div className={`px-4 py-2 rounded-full text-sm font-medium mb-6 flex-shrink-0 ${
+          <div className={`px-4 py-2 rounded-full text-sm font-medium md:mb-6 mb-4 flex-shrink-0 ${
             isListening ? 'bg-green-500/20 text-green-400 border border-green-500/30' :
             isSpeaking ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
             isInCall ? 'bg-gray-700 text-gray-300 border border-gray-600' :

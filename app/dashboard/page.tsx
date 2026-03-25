@@ -102,7 +102,7 @@ export default function DashboardPage() {
       .then((d: FeatureUsage) => {
         setFeatureUsage(d);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [status]);
 
   if (status === "loading") {
@@ -158,18 +158,22 @@ export default function DashboardPage() {
           <div className="flex items-center gap-4">
             <Image src="/logo.png" alt="Agento" width={100} height={60} className="opacity-90" />
             <div className="h-6 w-px bg-slate-200" />
-            <div>
+            {/* <div>
               <p className="text-sm text-slate-500">Welcome back,</p>
               <p className="font-semibold text-slate-900">{session?.user?.name}</p>
-            </div>
+            </div> */}
           </div>
           <div className="flex items-center gap-3">
             <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${planColor[plan] ?? planColor.starter}`}>
               {planLabel[plan] ?? plan}
             </span>
-            <button onClick={() => signOut({ callbackUrl: "/" })}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-all text-sm">
-              <LogOut className="w-4 h-4" /> Sign out
+            <button
+              onClick={() => signOut({ callbackUrl: "/" })}
+              className="flex items-center gap-1.5 p-2 md:px-3 md:py-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-all text-sm"
+            >
+              <LogOut className="w-4 h-4" />
+              {/* Text is hidden by default (mobile) and shown from 'md' breakpoint up */}
+              <span className="hidden md:inline">Sign out</span>
             </button>
           </div>
         </div>
@@ -178,9 +182,14 @@ export default function DashboardPage() {
         <div className="mb-10">
           <div className="rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 p-6 md:p-8 relative overflow-hidden shadow-lg shadow-indigo-200">
             <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full blur-[60px] bg-white/10" />
-            <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2 mb-2">
+
+            {/* 1. Changed items-start to items-center to keep things balanced on mobile */}
+            <div className="relative z-10 flex flex-col md:flex-row items-center md:items-center justify-between gap-6">
+
+              {/* Left Section: Text */}
+              {/* 2. Added text-center md:text-left so it looks better when stacked on mobile */}
+              <div className="text-center md:text-left">
+                <div className="flex items-center justify-center md:justify-start gap-2 mb-2">
                   <Sparkles className="w-4 h-4 text-indigo-200" />
                   <span className="text-indigo-200 text-sm font-medium">{session?.user?.company_name}</span>
                 </div>
@@ -189,17 +198,27 @@ export default function DashboardPage() {
                 </h1>
                 <p className="text-indigo-200 mt-1 text-sm">What would you like to explore today?</p>
               </div>
+
+              {/* Right Section: Usage Block */}
               {featureUsage && !unlimited && (
-                <div className="flex flex-col items-end gap-2 min-w-[160px]">
+                <div className="flex flex-col items-center text-center gap-2 min-w-[200px]">
                   <div className="flex items-center gap-2 text-sm">
                     <TrendingUp className="w-4 h-4 text-indigo-200" />
                     <span className="text-indigo-100">Total usage</span>
                   </div>
-                  <div className="text-2xl font-bold text-white">{totalUsed} <span className="text-indigo-200 text-base font-normal">/ {totalLimit}</span></div>
-                  <div className="w-full h-2 rounded-full bg-white/20 overflow-hidden">
-                    <div className={`h-full rounded-full transition-all ${limitReached ? "bg-red-400" : "bg-white"}`}
-                      style={{ width: `${Math.min((totalUsed / totalLimit) * 100, 100)}%` }} />
+
+                  <div className="text-2xl font-bold text-white">
+                    {totalUsed} <span className="text-indigo-200 text-base font-normal">/ {totalLimit}</span>
                   </div>
+
+                  {/* 3. The Progress Bar Container */}
+                  <div className="w-full h-2 rounded-full bg-white/20 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${limitReached ? "bg-red-400" : "bg-white"}`}
+                      style={{ width: `${Math.min((totalUsed / totalLimit) * 100, 100)}%` }}
+                    />
+                  </div>
+
                   {limitReached && (
                     <button onClick={() => setShowPricing(true)} className="text-xs text-white underline underline-offset-2 hover:text-indigo-100">
                       Upgrade plan
@@ -207,6 +226,7 @@ export default function DashboardPage() {
                   )}
                 </div>
               )}
+
               {unlimited && (
                 <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/20 border border-white/30">
                   <CheckCircle2 className="w-4 h-4 text-white" />
@@ -216,7 +236,6 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
-
         {/* ── Feature cards ── */}
         <div className="mb-8">
           <h2 className="text-sm font-semibold text-slate-600 uppercase tracking-wider mb-4 flex items-center gap-2">
@@ -312,7 +331,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ── Quick stats row ── */}
-        <div className="grid grid-cols-3 gap-4 mb-8">
+        {/* <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
           {[
             { icon: <MessageSquare className="w-4 h-4 text-indigo-500" />, label: "Chat calls", value: unlimited ? "∞" : `${chatUsage.used}/${chatUsage.limit}` },
             { icon: <Mic className="w-4 h-4 text-violet-500" />, label: "Voice calls", value: unlimited ? "∞" : `${voiceUsage.used}/${voiceUsage.limit}` },
@@ -326,25 +345,34 @@ export default function DashboardPage() {
               </div>
             </div>
           ))}
-        </div>
+        </div> */}
 
         {/* ── Upgrade nudge ── */}
         {featureUsage && !unlimited && !limitReached && (
-          <div className="rounded-2xl bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-200 p-5 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Clock className="w-5 h-5 text-indigo-500" />
+          <div className="rounded-2xl bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-200 p-5 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex flex-col md:flex-row items-center gap-3 text-center md:text-left">
+              {/* Icon wrapper to keep it centered on mobile */}
+              <div className="p-2 bg-indigo-100 rounded-lg shrink-0">
+                <Clock className="w-5 h-5 text-indigo-500" />
+              </div>
+
               <div>
                 <p className="text-sm font-medium text-slate-800">Enjoying Agento?</p>
-                <p className="text-xs text-slate-500">Upgrade for 500+ calls/month and unlock all features.</p>
+                {/* max-w-xs prevents the text from stretching too far on small screens */}
+                <p className="text-xs text-slate-500 max-w-[250px] md:max-w-none">
+                  Upgrade for 500+ calls/month and unlock all features.
+                </p>
               </div>
             </div>
-            <button onClick={() => router.push("/pricing")}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-all hover:-translate-y-0.5 shadow-sm">
+
+            <button
+              onClick={() => router.push("/pricing")}
+              className="w-full md:w-auto flex items-center justify-center gap-1.5 px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-all hover:-translate-y-0.5 shadow-md shadow-indigo-100"
+            >
               View Plans <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
         )}
-
         {/* Inline pricing when limit hit */}
         {limitReached && (
           <div className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">

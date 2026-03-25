@@ -11,7 +11,7 @@ import {
   ArrowLeft, Upload, Database, Search, Trash2, Loader2,
   Table, ChevronDown, ChevronUp, FileSpreadsheet, Zap,
   CheckCircle, PlusCircle, RefreshCw, AlertCircle, Settings,
-  HardDriveUpload, Cpu, BarChart2, Microscope, TrendingUp, Lightbulb,
+  HardDriveUpload, Cpu, BarChart2, Microscope, TrendingUp, Lightbulb, Menu, X,
 } from "lucide-react";
 import Image from "next/image";
 import {
@@ -49,24 +49,24 @@ interface SchemaFieldDef {
 
 type Tab = "read" | "insert" | "update" | "delete";
 type AnalyticsTab = "descriptive" | "diagnostic" | "predictive" | "prescriptive";
-type SidebarMode = "ingest" | "work" | "analytics";
+type SidebarMode = "ingest" | "work" | "analytics" | "lookup";
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
-  { id: "read",   label: "Read",   icon: <Search className="w-3.5 h-3.5" /> },
+  { id: "read", label: "Read", icon: <Search className="w-3.5 h-3.5" /> },
   { id: "insert", label: "Insert", icon: <PlusCircle className="w-3.5 h-3.5" /> },
   { id: "update", label: "Update", icon: <RefreshCw className="w-3.5 h-3.5" /> },
   { id: "delete", label: "Delete", icon: <Trash2 className="w-3.5 h-3.5" /> },
 ];
 
 const ANALYTICS_TABS: { id: AnalyticsTab; label: string; question: string; color: string; icon: React.ReactNode; placeholder: string }[] = [
-  { id: "descriptive",  label: "Descriptive",  question: "What happened?",     color: "blue",   icon: <BarChart2 className="w-3.5 h-3.5" />,  placeholder: 'e.g. "Summarize sales by region"' },
-  { id: "diagnostic",   label: "Diagnostic",   question: "Why did it happen?", color: "purple", icon: <Microscope className="w-3.5 h-3.5" />, placeholder: 'e.g. "Why did revenue drop last month?"' },
-  { id: "predictive",   label: "Predictive",   question: "What might happen?", color: "amber",  icon: <TrendingUp className="w-3.5 h-3.5" />, placeholder: 'e.g. "Forecast next quarter performance"' },
-  { id: "prescriptive", label: "Prescriptive", question: "What should we do?", color: "green",  icon: <Lightbulb className="w-3.5 h-3.5" />,  placeholder: 'e.g. "What actions to improve sales?"' },
+  { id: "descriptive", label: "Descriptive", question: "What happened?", color: "blue", icon: <BarChart2 className="w-3.5 h-3.5" />, placeholder: 'e.g. "Summarize sales by region"' },
+  { id: "diagnostic", label: "Diagnostic", question: "Why did it happen?", color: "purple", icon: <Microscope className="w-3.5 h-3.5" />, placeholder: 'e.g. "Why did revenue drop last month?"' },
+  { id: "predictive", label: "Predictive", question: "What might happen?", color: "amber", icon: <TrendingUp className="w-3.5 h-3.5" />, placeholder: 'e.g. "Forecast next quarter performance"' },
+  { id: "prescriptive", label: "Prescriptive", question: "What should we do?", color: "green", icon: <Lightbulb className="w-3.5 h-3.5" />, placeholder: 'e.g. "What actions to improve sales?"' },
 ];
 
 // ── AnalyticsChart ────────────────────────────────────────────────────────────
-const CHART_COLORS = ["#6366f1","#3b82f6","#10b981","#f59e0b","#ef4444","#8b5cf6","#06b6d4","#f97316"];
+const CHART_COLORS = ["#6366f1", "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#f97316"];
 
 const TOOLTIP_STYLE = {
   background: "rgba(255,255,255,0.95)",
@@ -88,7 +88,7 @@ function flattenDoc(doc: Record<string, unknown>): Record<string, unknown> {
       const obj = v as Record<string, unknown>;
       if ("count" in obj) { out[k] = Number(obj.count); continue; }
       if ("total" in obj) { out[k] = Number(obj.total); continue; }
-      if ("avg" in obj)   { out[k] = Number(obj.avg);   continue; }
+      if ("avg" in obj) { out[k] = Number(obj.avg); continue; }
       // $bucket _id range like { min: 0, max: 10 }
       const vals = Object.values(obj);
       if (vals.length === 2 && vals.every(x => typeof x === "number")) {
@@ -108,19 +108,22 @@ function AnalyticsChart({ data, chartType }: { data: Record<string, unknown>[]; 
   // Flatten nested objects first
   const flat = data.map(flattenDoc);
 
-  const keys = Object.keys(flat[0]);
+  // Discover all unique keys across all rows
+  const keysSet = new Set<string>();
+  flat.forEach(row => Object.keys(row).forEach(k => keysSet.add(k)));
+  const keys = Array.from(keysSet);
+
   // Label key: prefer "label" (from _id unwrap), then first string that isn't purely numeric
-  const labelKey =
-    keys.includes("label") ? "label" :
-    keys.find(k => typeof flat[0][k] === "string" && isNaN(Number(flat[0][k]))) ||
-    keys[0];
-  // Value keys: numeric, excluding label
-  const valueKeys = keys.filter(k => k !== labelKey && flat[0][k] !== null && !isNaN(Number(flat[0][k])));
+  const labelKey = keys.includes("label") ? "label" :
+      keys.find(k => flat.some(row => typeof row[k] === "string" && isNaN(Number(row[k])))) || keys[0];
+
+  // Value keys: numeric, excluding label. We check if ANY row has a valid numeric value for this key
+  const valueKeys = keys.filter(k => k !== labelKey && flat.some(row => row[k] !== null && row[k] !== undefined && !isNaN(Number(row[k]))));
   const finalValueKeys = valueKeys.length > 0 ? valueKeys : keys.filter(k => k !== labelKey);
 
   const formatted = flat.map(row => {
     const out: Record<string, unknown> = { name: String(row[labelKey] ?? "") };
-    finalValueKeys.forEach(k => { out[k] = isNaN(Number(row[k])) ? 0 : Number(row[k]); });
+    finalValueKeys.forEach(k => { out[k] = row[k] == null || isNaN(Number(row[k])) ? 0 : Number(row[k]); });
     return out;
   });
 
@@ -130,7 +133,7 @@ function AnalyticsChart({ data, chartType }: { data: Record<string, unknown>[]; 
   const effectiveChartType =
     (chartType === "line" || chartType === "area") && formatted.length < 2 ? "bar" : chartType;
   const insufficientNote = effectiveChartType !== chartType
-    ? `(switched to bar — line/area needs ≥2 data points, got ${formatted.length})`
+    ? `(switched to bar - line/area needs ≥2 data points, got ${formatted.length})`
     : null;
 
   const commonProps = { data: formatted, margin: { top: 10, right: 20, left: 0, bottom: 50 } };
@@ -229,6 +232,8 @@ function InsertTab({ collectionName, schema, schemaLoading, onSuccess }: {
     message: string;
   } | null>(null);
   const [preview, setPreview] = useState<Record<string, unknown>[]>([]);
+  const [insertMode, setInsertMode] = useState<"csv" | "manual">("csv");
+  const [manualDoc, setManualDoc] = useState<Record<string, string>>({});
 
   const parsePreview = async (f: File) => {
     const text = await f.text();
@@ -248,6 +253,24 @@ function InsertTab({ collectionName, schema, schemaLoading, onSuccess }: {
     const f = e.target.files?.[0] || null;
     setFile(f); setResult(null); setPreview([]);
     if (f) parsePreview(f);
+  };
+
+  const handleManualInsert = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setUploading(true); setResult(null);
+    try {
+      const res = await fetch("/api/query-genius/query", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ operation: "insert", collectionName, document: manualDoc })
+      });
+      const d = await res.json();
+      if (res.ok) {
+        setResult({ inserted: d.insertedCount ?? 1, rejected: 0, message: `Successfully inserted row!` });
+        setManualDoc({});
+        onSuccess();
+      } else { setResult({ inserted: 0, rejected: 1, message: d.message || "Insert failed", rejectedDetails: d.validationErrors ? [{ row: 1, values: manualDoc, errors: d.validationErrors }] : undefined }); }
+    } catch { setResult({ inserted: 0, rejected: 1, message: "Something went wrong" }); }
+    finally { setUploading(false); }
   };
 
   const handleAppend = async () => {
@@ -274,7 +297,12 @@ function InsertTab({ collectionName, schema, schemaLoading, onSuccess }: {
 
   return (
     <div className="space-y-4">
-      {!schemaLoading && schemaFields.length > 0 && (
+      <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg w-fit">
+        <button onClick={() => setInsertMode("csv")} className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${insertMode === "csv" ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"}`}>CSV Upload</button>
+        <button onClick={() => setInsertMode("manual")} className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${insertMode === "manual" ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"}`}>Manual Entry</button>
+      </div>
+
+      {!schemaLoading && schemaFields.length > 0 && insertMode === "csv" && (
         <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
           <p className="text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Expected columns:</p>
           <div className="flex flex-wrap gap-2">
@@ -286,37 +314,63 @@ function InsertTab({ collectionName, schema, schemaLoading, onSuccess }: {
           </div>
         </div>
       )}
-      <label htmlFor="insert-file" className={`flex flex-col items-center justify-center gap-3 p-8 rounded-xl border-2 border-dashed cursor-pointer transition-colors ${file ? "border-green-400 dark:border-green-600 bg-green-50/50 dark:bg-green-900/10" : "border-slate-300 dark:border-slate-600 hover:border-indigo-400 dark:hover:border-indigo-500 bg-slate-50/50 dark:bg-slate-800/30"}`}>
-        <Upload className={`w-8 h-8 ${file ? "text-green-500" : "text-slate-400"}`} />
-        {file ? (
-          <div className="text-center">
-            <p className="text-sm font-medium text-green-700 dark:text-green-400">{file.name}</p>
-            <p className="text-xs text-slate-500 mt-0.5">{(file.size / 1024).toFixed(1)} KB · click to change</p>
-          </div>
-        ) : (
-          <div className="text-center">
-            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Drop a CSV or Excel file here</p>
-            <p className="text-xs text-slate-500 mt-0.5">or click to browse</p>
-          </div>
-        )}
-        <input id="insert-file" type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={handleFile} />
-      </label>
-      {preview.length > 0 && (
-        <div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">Preview (first 3 rows):</p>
-          <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
-            <table className="min-w-full text-xs">
-              <thead><tr className="bg-slate-100 dark:bg-slate-800">
-                {previewCols.map(c => <th key={c} className="px-3 py-2 text-left font-semibold text-slate-600 dark:text-slate-300 whitespace-nowrap border-b border-slate-200 dark:border-slate-700">{c}</th>)}
-              </tr></thead>
-              <tbody>{preview.map((row, i) => (
-                <tr key={i} className={i % 2 === 0 ? "bg-white dark:bg-slate-900/50" : "bg-slate-50/50 dark:bg-slate-800/30"}>
-                  {previewCols.map(c => <td key={c} className="px-3 py-2 text-slate-700 dark:text-slate-300 whitespace-nowrap border-b border-slate-100 dark:border-slate-800">{String(row[c] ?? "")}</td>)}
-                </tr>
-              ))}</tbody>
-            </table>
-          </div>
-        </div>
+      {insertMode === "csv" ? (
+        <>
+          <label htmlFor="insert-file" className={`flex flex-col items-center justify-center gap-3 p-8 rounded-xl border-2 border-dashed cursor-pointer transition-colors ${file ? "border-green-400 dark:border-green-600 bg-green-50/50 dark:bg-green-900/10" : "border-slate-300 dark:border-slate-600 hover:border-indigo-400 dark:hover:border-indigo-500 bg-slate-50/50 dark:bg-slate-800/30"}`}>
+            <Upload className={`w-8 h-8 ${file ? "text-green-500" : "text-slate-400"}`} />
+            {file ? (
+              <div className="text-center">
+                <p className="text-sm font-medium text-green-700 dark:text-green-400">{file.name}</p>
+                <p className="text-xs text-slate-500 mt-0.5">{(file.size / 1024).toFixed(1)} KB · click to change</p>
+              </div>
+            ) : (
+              <div className="text-center">
+                <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Drop a CSV or Excel file here</p>
+                <p className="text-xs text-slate-500 mt-0.5">or click to browse</p>
+              </div>
+            )}
+            <input id="insert-file" type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={handleFile} />
+          </label>
+          {preview.length > 0 && (
+            <div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">Preview (first 3 rows):</p>
+              <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
+                <table className="min-w-full text-xs">
+                  <thead><tr className="bg-slate-100 dark:bg-slate-800">
+                    {previewCols.map(c => <th key={c} className="px-3 py-2 text-left font-semibold text-slate-600 dark:text-slate-300 whitespace-nowrap border-b border-slate-200 dark:border-slate-700">{c}</th>)}
+                  </tr></thead>
+                  <tbody>{preview.map((row, i) => (
+                    <tr key={i} className={i % 2 === 0 ? "bg-white dark:bg-slate-900/50" : "bg-slate-50/50 dark:bg-slate-800/30"}>
+                      {previewCols.map(c => <td key={c} className="px-3 py-2 text-slate-700 dark:text-slate-300 whitespace-nowrap border-b border-slate-100 dark:border-slate-800">{String(row[c] ?? "")}</td>)}
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        <form id="manual-insert-form" onSubmit={handleManualInsert} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {schemaFields.map(f => (
+            <div key={f} className="space-y-1.5">
+              <Label className="text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                <span>{f} <span className="opacity-60 text-xs font-normal">({schema[f].type})</span></span>
+                {schema[f].isAutoIncrement && <span className="text-[10px] bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-500">Auto++</span>}
+              </Label>
+              {schema[f].enumValues && schema[f].enumValues!.length > 0 ? (
+                <select value={manualDoc[f] || ""} onChange={e => setManualDoc({ ...manualDoc, [f]: e.target.value })} disabled={schema[f].isAutoIncrement}
+                  className="w-full h-10 rounded-md border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 text-slate-900 dark:text-slate-100">
+                  <option value="">{schema[f].nullable ? "(Null)" : "Select..."}</option>
+                  {schema[f].enumValues!.map((v: any) => <option key={v} value={String(v)}>{String(v)}</option>)}
+                </select>
+              ) : (
+                <Input value={manualDoc[f] || ""} onChange={e => setManualDoc({ ...manualDoc, [f]: e.target.value })} disabled={schema[f].isAutoIncrement}
+                  placeholder={schema[f].isAutoIncrement ? "Auto-generated" : `Enter ${f}...`} type={schema[f].type === "number" ? "number" : "text"}
+                  className="bg-white/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 disabled:opacity-50" />
+              )}
+            </div>
+          ))}
+        </form>
       )}
       {result && (
         <div className="space-y-2">
@@ -339,9 +393,15 @@ function InsertTab({ collectionName, schema, schemaLoading, onSuccess }: {
           )}
         </div>
       )}
-      <Button onClick={handleAppend} disabled={!file || uploading} className="w-full h-10 bg-gradient-to-r from-green-600 to-emerald-600 text-white border-0 hover:from-green-700 hover:to-emerald-700 disabled:opacity-50">
-        {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><PlusCircle className="w-4 h-4 mr-2" />Append to {collectionName}</>}
-      </Button>
+      {insertMode === "csv" ? (
+        <Button onClick={handleAppend} disabled={!file || uploading} className="w-full h-10 bg-gradient-to-r from-green-600 to-emerald-600 text-white border-0 hover:from-green-700 hover:to-emerald-700 disabled:opacity-50">
+          {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Upload className="w-4 h-4 mr-2" />Upload CSV to {collectionName}</>}
+        </Button>
+      ) : (
+        <Button form="manual-insert-form" type="submit" disabled={uploading || schemaFields.length === 0} className="w-full h-10 bg-gradient-to-r from-indigo-600 to-blue-600 text-white border-0 hover:from-indigo-700 hover:to-blue-700 disabled:opacity-50">
+          {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><PlusCircle className="w-4 h-4 mr-2" />Insert Row</>}
+        </Button>
+      )}
     </div>
   );
 }
@@ -433,6 +493,7 @@ export default function QueryGeniusPage() {
   const router = useRouter();
 
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>("ingest");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const [collections, setCollections] = useState<Collection[]>([]);
   const [collectionsLoading, setCollectionsLoading] = useState(true);
@@ -465,6 +526,18 @@ export default function QueryGeniusPage() {
   const [analyticsResult, setAnalyticsResult] = useState<AnalyticsResult | null>(null);
   const [analyticsError, setAnalyticsError] = useState("");
   const [showAnalyticsPipeline, setShowAnalyticsPipeline] = useState(false);
+
+  // LookUp state
+  const [lookupMode, setLookupMode] = useState<"manual" | "ai">("manual");
+  const [lookupXAxis, setLookupXAxis] = useState("");
+  const [lookupYAxis, setLookupYAxis] = useState("");
+  const [lookupAggType, setLookupAggType] = useState("count");
+  const [lookupChartType, setLookupChartType] = useState("bar");
+  const [lookupQuery, setLookupQuery] = useState("");
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupError, setLookupError] = useState("");
+  const [lookupResult, setLookupResult] = useState<{ pipeline?: object[]; results: Record<string, unknown>[]; chartType: string; count: number; } | null>(null);
+  const [showLookupPipeline, setShowLookupPipeline] = useState(false);
 
   useEffect(() => { if (status === "unauthenticated") router.push("/login"); }, [status, router]);
 
@@ -567,7 +640,30 @@ export default function QueryGeniusPage() {
     finally { setAnalyticsLoading(false); }
   };
 
-  const handleDeleteCollection = async (name: string) => {    if (!confirm(`Delete collection "${name}"?`)) return;
+  const submitLookup = async () => {
+    if (!selectedCollection) return;
+    if (lookupMode === "manual" && !lookupXAxis) return;
+    if (lookupMode === "ai" && !lookupQuery.trim()) return;
+
+    setLookupLoading(true); setLookupError(""); setLookupResult(null); setShowLookupPipeline(false);
+    try {
+      const body = lookupMode === "manual" 
+        ? { mode: "manual", collectionName: selectedCollection, xAxis: lookupXAxis, yAxis: lookupYAxis, aggType: lookupAggType, chartType: lookupChartType }
+        : { mode: "ai", collectionName: selectedCollection, query: lookupQuery };
+
+      const res = await fetch("/api/query-genius/lookup", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const d = await res.json();
+      if (res.ok) setLookupResult(d);
+      else setLookupError(d.message || "LookUp failed");
+    } catch { setLookupError("Something went wrong"); }
+    finally { setLookupLoading(false); }
+  };
+
+  const handleDeleteCollection = async (name: string) => {
+    if (!confirm(`Delete collection "${name}"?`)) return;
     setDeletingCol(name);
     try {
       const res = await fetch(`/api/query-genius/data?collection=${name}`, { method: "DELETE" });
@@ -591,25 +687,50 @@ export default function QueryGeniusPage() {
       <div className="absolute top-1/4 -right-64 w-[700px] h-[700px] rounded-full blur-[140px] bg-indigo-300/35 dark:bg-indigo-800/25 pointer-events-none" />
 
       {/* Header */}
-      <div className="relative z-10 flex items-center justify-between px-6 py-4 border-b border-slate-200/50 dark:border-slate-700/50 bg-white/30 dark:bg-slate-900/30 backdrop-blur-sm flex-shrink-0">
-        <button onClick={() => router.push("/dashboard")} className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors">
-          <ArrowLeft className="w-4 h-4" /> Back
-        </button>
+      <div className="relative z-10 flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-slate-200/50 dark:border-slate-700/50 bg-white/30 dark:bg-slate-900/30 backdrop-blur-sm flex-shrink-0">
+        <div className="flex items-center gap-2 md:gap-4">
+          <button onClick={() => setIsSidebarOpen(true)} className="md:hidden p-2 text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 rounded-lg hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-colors">
+            <Menu className="w-5 h-5" />
+          </button>
+          <button onClick={() => router.push("/dashboard")} className="hidden md:flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors">
+            <ArrowLeft className="w-4 h-4" /> Back
+          </button>
+        </div>
         <div className="flex items-center gap-2">
           <Zap className="w-5 h-5 text-indigo-500" />
-          <h1 className="text-lg font-semibold text-slate-800 dark:text-slate-200">Query Genius</h1>
+          <h1 className="text-lg font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[150px] md:max-w-none">Query Genius</h1>
         </div>
-        <div className="relative">
-          <div className="absolute inset-0 flex justify-center"><div className="w-10 h-10 bg-blue-400/20 rounded-full blur-[20px]" /></div>
-          <Image src="/logo.png" alt="Logo" width={100} height={57} className="relative z-10 opacity-80" />
+        <div className="flex items-center gap-2 md:gap-4">
+          <button onClick={() => router.push("/dashboard")} className="md:hidden p-2 text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 rounded-lg hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-colors">
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <div className="relative hidden md:block">
+            <div className="absolute inset-0 flex justify-center"><div className="w-10 h-10 bg-blue-400/20 rounded-full blur-[20px]" /></div>
+            <Image src="/logo.png" alt="Logo" width={100} height={57} className="relative z-10 opacity-80" />
+          </div>
         </div>
       </div>
 
       {/* Body */}
       <div className="relative z-10 flex flex-1 overflow-hidden">
 
+        {/* Mobile Backdrop */}
+        {isSidebarOpen && (
+          <div
+            className="md:hidden absolute inset-0 bg-slate-900/20 dark:bg-slate-900/60 backdrop-blur-sm z-40 transition-opacity"
+            onClick={() => setIsSidebarOpen(false)}
+          />
+        )}
+
         {/* ── SIDEBAR: toggle + collections only ── */}
-        <aside className="w-64 flex-shrink-0 flex flex-col border-r border-slate-200/60 dark:border-slate-700/60 bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl overflow-y-auto">
+        <aside className={`absolute md:relative z-50 w-72 md:w-64 h-full flex-shrink-0 flex flex-col border-r border-slate-200/60 dark:border-slate-700/60 bg-white/95 dark:bg-slate-900/95 md:bg-white/40 md:dark:bg-slate-900/40 backdrop-blur-xl overflow-y-auto transition-transform duration-300 ease-out shadow-2xl md:shadow-none ${isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}>
+          {/* Mobile Sidebar Close Button */}
+          <div className="md:hidden flex items-center justify-between p-4 border-b border-slate-200/60 dark:border-slate-700/60">
+            <span className="font-semibold text-slate-700 dark:text-slate-200">Menu</span>
+            <button onClick={() => setIsSidebarOpen(false)} className="p-1.5 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
 
           {/* Mode toggle */}
           <div className="p-3 border-b border-slate-200/60 dark:border-slate-700/60">
@@ -630,13 +751,22 @@ export default function QueryGeniusPage() {
                   <span>Work on Data</span>
                 </button>
               </div>
-              <button
-                onClick={() => setSidebarMode("analytics")}
-                className={`w-full flex items-center justify-center gap-2 py-2 px-2 rounded-lg text-xs font-semibold transition-all ${sidebarMode === "analytics" ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"}`}
-              >
-                <BarChart2 className="w-4 h-4" />
-                <span>Analytics</span>
-              </button>
+              <div className="flex gap-1 mt-1">
+                <button
+                  onClick={() => setSidebarMode("analytics")}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2 px-2 rounded-lg text-xs font-semibold transition-all ${sidebarMode === "analytics" ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"}`}
+                >
+                  <BarChart2 className="w-4 h-4" />
+                  <span>Analytics</span>
+                </button>
+                <button
+                  onClick={() => setSidebarMode("lookup")}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2 px-2 rounded-lg text-xs font-semibold transition-all ${sidebarMode === "lookup" ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"}`}
+                >
+                  <Search className="w-4 h-4" />
+                  <span>LookUp</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -661,7 +791,7 @@ export default function QueryGeniusPage() {
 
             {collections.map(col => (
               <div key={col.name}
-                onClick={() => { selectCollection(col.name); if (sidebarMode === "ingest") setSidebarMode("work"); }}
+                onClick={() => { selectCollection(col.name); if (sidebarMode === "ingest") setSidebarMode("work"); setIsSidebarOpen(false); }}
                 className={`group flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer border transition-all ${selectedCollection === col.name && sidebarMode === "work" ? "bg-indigo-50 dark:bg-indigo-900/30 border-indigo-300 dark:border-indigo-700" : "bg-white/50 dark:bg-slate-800/40 border-slate-200/60 dark:border-slate-700/60 hover:bg-slate-50 dark:hover:bg-slate-700/50"}`}>
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">{col.name}</p>
@@ -679,7 +809,7 @@ export default function QueryGeniusPage() {
         </aside>
 
         {/* ── MAIN CONTENT ── */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-5">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-5">
 
           {/* ════ DATA INGESTION VIEW ════ */}
           {sidebarMode === "ingest" && (
@@ -772,10 +902,10 @@ export default function QueryGeniusPage() {
                         {schemaLoading && <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400" />}
                       </CardTitle>
                     </div>
-                    <div className="flex gap-1 mt-3 border-b border-slate-200 dark:border-slate-700">
+                    <div className="flex overflow-x-auto gap-1 mt-3 border-b border-slate-200 dark:border-slate-700 scrollbar-hide">
                       {TABS.map(t => (
                         <button key={t.id} onClick={() => { setActiveTab(t.id); setQueryResult(null); setQueryError(""); }}
-                          className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-t-lg transition-colors border-b-2 -mb-px ${activeTab === t.id ? "border-indigo-500 text-indigo-600 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-900/20" : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"}`}>
+                          className={`flex items-center gap-1.5 px-3 md:px-4 py-2 text-sm font-medium rounded-t-lg transition-colors border-b-2 -mb-px whitespace-nowrap ${activeTab === t.id ? "border-indigo-500 text-indigo-600 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-900/20" : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"}`}>
                           {t.icon}{t.label}
                         </button>
                       ))}
@@ -785,10 +915,10 @@ export default function QueryGeniusPage() {
                     {activeTab === "read" && (
                       <form onSubmit={e => { e.preventDefault(); submitQuery("read", { query: nlQuery }); }} className="space-y-3">
                         <Label className="text-slate-700 dark:text-slate-300">Ask a question about your data</Label>
-                        <div className="flex gap-2">
+                        <div className="flex flex-col sm:flex-row gap-2">
                           <Input placeholder='e.g. "Show students with marks above 80"' value={nlQuery} onChange={e => setNlQuery(e.target.value)} disabled={querying} className="flex-1 bg-white/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700" />
-                          <Button type="submit" disabled={querying || !nlQuery.trim()} className="h-10 px-5 bg-gradient-to-r from-indigo-600 to-blue-600 text-white border-0 hover:from-indigo-700 hover:to-blue-700 disabled:opacity-50">
-                            {querying ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                          <Button type="submit" disabled={querying || !nlQuery.trim()} className="w-full sm:w-auto h-10 px-5 bg-gradient-to-r from-indigo-600 to-blue-600 text-white border-0 hover:from-indigo-700 hover:to-blue-700 disabled:opacity-50">
+                            {querying ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Search className="w-4 h-4 sm:mr-0 mr-2" /><span className="sm:hidden">Search</span></>}
                           </Button>
                         </div>
                       </form>
@@ -836,7 +966,7 @@ export default function QueryGeniusPage() {
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <CardTitle className="flex items-center gap-2 text-base">
-                        {queryResult.operation === "read"   && <Table className="w-4 h-4" />}
+                        {queryResult.operation === "read" && <Table className="w-4 h-4" />}
                         {queryResult.operation === "insert" && <PlusCircle className="w-4 h-4 text-green-500" />}
                         {queryResult.operation === "update" && <RefreshCw className="w-4 h-4 text-blue-500" />}
                         {queryResult.operation === "delete" && <Trash2 className="w-4 h-4 text-red-500" />}
@@ -890,17 +1020,17 @@ export default function QueryGeniusPage() {
                         {queryResult.results.length === 0
                           ? <p className="text-sm text-slate-500 text-center py-6">No results found.</p>
                           : <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
-                              <table className="min-w-full text-sm">
-                                <thead><tr className="bg-slate-100 dark:bg-slate-800">
-                                  {tableColumns.map(c => <th key={c} className="px-3 py-2 text-left text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wide whitespace-nowrap border-b border-slate-200 dark:border-slate-700">{c}</th>)}
-                                </tr></thead>
-                                <tbody>{queryResult.results.map((row, i) => (
-                                  <tr key={i} className={i % 2 === 0 ? "bg-white dark:bg-slate-900/50" : "bg-slate-50/50 dark:bg-slate-800/30"}>
-                                    {tableColumns.map(c => <td key={c} className="px-3 py-2 text-slate-700 dark:text-slate-300 whitespace-nowrap border-b border-slate-100 dark:border-slate-800">{row[c] == null ? <span className="text-slate-400 italic">null</span> : String(row[c])}</td>)}
-                                  </tr>
-                                ))}</tbody>
-                              </table>
-                            </div>
+                            <table className="min-w-full text-sm">
+                              <thead><tr className="bg-slate-100 dark:bg-slate-800">
+                                {tableColumns.map(c => <th key={c} className="px-3 py-2 text-left text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wide whitespace-nowrap border-b border-slate-200 dark:border-slate-700">{c}</th>)}
+                              </tr></thead>
+                              <tbody>{queryResult.results.map((row, i) => (
+                                <tr key={i} className={i % 2 === 0 ? "bg-white dark:bg-slate-900/50" : "bg-slate-50/50 dark:bg-slate-800/30"}>
+                                  {tableColumns.map(c => <td key={c} className="px-3 py-2 text-slate-700 dark:text-slate-300 whitespace-nowrap border-b border-slate-100 dark:border-slate-800">{row[c] == null ? <span className="text-slate-400 italic">null</span> : String(row[c])}</td>)}
+                                </tr>
+                              ))}</tbody>
+                            </table>
+                          </div>
                         }
                       </>
                     )}
@@ -920,30 +1050,57 @@ export default function QueryGeniusPage() {
                 </div>
               ) : (
                 <>
-                  {/* Analytics type cards */}
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-2">
-                    {ANALYTICS_TABS.map(t => (
-                      <button key={t.id} onClick={() => { setAnalyticsTab(t.id); setAnalyticsResult(null); setAnalyticsError(""); }}
-                        className={`flex flex-col items-start gap-2 p-4 rounded-xl border-2 text-left transition-all ${analyticsTab === t.id
-                          ? t.color === "blue"   ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
-                          : t.color === "purple" ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20"
-                          : t.color === "amber"  ? "border-amber-500 bg-amber-50 dark:bg-amber-900/20"
-                          :                        "border-green-500 bg-green-50 dark:bg-green-900/20"
-                          : "border-slate-200 dark:border-slate-700 bg-white/60 dark:bg-white/5 hover:border-slate-300 dark:hover:border-slate-600"}`}>
-                        <div className={`p-2 rounded-lg ${analyticsTab === t.id
-                          ? t.color === "blue"   ? "bg-blue-100 dark:bg-blue-800/40 text-blue-600 dark:text-blue-400"
-                          : t.color === "purple" ? "bg-purple-100 dark:bg-purple-800/40 text-purple-600 dark:text-purple-400"
-                          : t.color === "amber"  ? "bg-amber-100 dark:bg-amber-800/40 text-amber-600 dark:text-amber-400"
-                          :                        "bg-green-100 dark:bg-green-800/40 text-green-600 dark:text-green-400"
-                          : "bg-slate-100 dark:bg-slate-800 text-slate-500"}`}>
-                          {t.icon}
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{t.label}</p>
-                          <p className="text-xs text-slate-500 dark:text-slate-400 italic">{t.question}</p>
-                        </div>
-                      </button>
-                    ))}
+                  {/* Analytics type: Cards for Desktop, Dropdown for Mobile */}
+                  <div className="mb-6">
+                    <Label className="text-slate-500 dark:text-slate-400 mb-2 block font-medium uppercase tracking-wider text-xs">Analysis Mode</Label>
+                    
+                    {/* Mobile Dropdown */}
+                    <div className="relative group md:hidden">
+                      <select
+                        value={analyticsTab}
+                        onChange={(e) => {
+                          setAnalyticsTab(e.target.value as AnalyticsTab);
+                          setAnalyticsResult(null);
+                          setAnalyticsError("");
+                        }}
+                        className="w-full h-14 appearance-none bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-500 rounded-xl px-5 pr-12 text-slate-800 dark:text-slate-100 font-semibold text-lg cursor-pointer focus:outline-none focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-sm transition-all"
+                      >
+                        {ANALYTICS_TABS.map(t => (
+                          <option key={t.id} value={t.id}>
+                            {t.label} - {t.question}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400 group-hover:text-indigo-500 transition-colors">
+                        <ChevronDown className="w-5 h-5" />
+                      </div>
+                    </div>
+
+                    {/* Desktop Cards */}
+                    <div className="hidden md:grid grid-cols-2 lg:grid-cols-4 gap-3">
+                      {ANALYTICS_TABS.map(t => (
+                        <button key={t.id} onClick={() => { setAnalyticsTab(t.id); setAnalyticsResult(null); setAnalyticsError(""); }}
+                          className={`flex flex-col items-start gap-2 p-4 rounded-xl border-2 text-left transition-all ${analyticsTab === t.id
+                            ? t.color === "blue"   ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 shadow-sm"
+                            : t.color === "purple" ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20 shadow-sm"
+                            : t.color === "amber"  ? "border-amber-500 bg-amber-50 dark:bg-amber-900/20 shadow-sm"
+                            :                        "border-green-500 bg-green-50 dark:bg-green-900/20 shadow-sm"
+                            : "border-slate-200 dark:border-slate-700 bg-white/60 dark:bg-white/5 hover:border-slate-300 dark:hover:border-slate-600"}`}>
+                          <div className={`p-2 rounded-lg ${analyticsTab === t.id
+                            ? t.color === "blue"   ? "bg-blue-100 dark:bg-blue-800/40 text-blue-600 dark:text-blue-400"
+                            : t.color === "purple" ? "bg-purple-100 dark:bg-purple-800/40 text-purple-600 dark:text-purple-400"
+                            : t.color === "amber"  ? "bg-amber-100 dark:bg-amber-800/40 text-amber-600 dark:text-amber-400"
+                            :                        "bg-green-100 dark:bg-green-800/40 text-green-600 dark:text-green-400"
+                            : "bg-slate-100 dark:bg-slate-800 text-slate-500"}`}>
+                            {t.icon}
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{t.label}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 italic hidden lg:block">{t.question}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   {/* Query input */}
@@ -955,14 +1112,14 @@ export default function QueryGeniusPage() {
                           <form onSubmit={e => { e.preventDefault(); submitAnalytics(); }} className="space-y-3">
                             <div className="flex items-center gap-2 mb-1">
                               <span className={`p-1.5 rounded-lg ${t.color === "blue" ? "bg-blue-100 dark:bg-blue-800/40 text-blue-600 dark:text-blue-400" : t.color === "purple" ? "bg-purple-100 dark:bg-purple-800/40 text-purple-600 dark:text-purple-400" : t.color === "amber" ? "bg-amber-100 dark:bg-amber-800/40 text-amber-600 dark:text-amber-400" : "bg-green-100 dark:bg-green-800/40 text-green-600 dark:text-green-400"}`}>{t.icon}</span>
-                              <Label className="text-slate-700 dark:text-slate-300 font-semibold">{t.label} Analytics <span className="font-normal text-slate-400">— {t.question}</span></Label>
+                              <Label className="text-slate-700 dark:text-slate-300 font-semibold">{t.label} Analytics <span className="font-normal text-slate-400">- {t.question}</span></Label>
                             </div>
-                            <div className="flex gap-2">
+                            <div className="flex flex-col sm:flex-row gap-3 pt-2">
                               <Input placeholder={t.placeholder} value={analyticsQuery} onChange={e => setAnalyticsQuery(e.target.value)} disabled={analyticsLoading}
-                                className="flex-1 bg-white/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700" />
+                                className="flex-1 h-14 md:h-16 px-5 text-base md:text-lg bg-white/70 dark:bg-slate-800/70 border-2 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 focus:border-indigo-500 rounded-xl transition-colors shadow-sm" />
                               <Button type="submit" disabled={analyticsLoading || !analyticsQuery.trim()}
-                                className={`h-10 px-5 text-white border-0 disabled:opacity-50 ${t.color === "blue" ? "bg-blue-600 hover:bg-blue-700" : t.color === "purple" ? "bg-purple-600 hover:bg-purple-700" : t.color === "amber" ? "bg-amber-600 hover:bg-amber-700" : "bg-green-600 hover:bg-green-700"}`}>
-                                {analyticsLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                                className={`w-full sm:w-auto h-14 md:h-16 px-8 text-base md:text-lg font-semibold text-white border-0 rounded-xl shadow-lg hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:hover:translate-y-0 ${t.color === "blue" ? "bg-blue-600 hover:bg-blue-700 shadow-blue-500/25" : t.color === "purple" ? "bg-purple-600 hover:bg-purple-700 shadow-purple-500/25" : t.color === "amber" ? "bg-amber-600 hover:bg-amber-700 shadow-amber-500/25" : "bg-green-600 hover:bg-green-700 shadow-green-500/25"}`}>
+                                {analyticsLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Search className="w-5 h-5 mr-2" />Run Analytics</>}
                               </Button>
                             </div>
                           </form>
@@ -1037,6 +1194,158 @@ export default function QueryGeniusPage() {
                             </table>
                           </div>
                         )}
+                      </CardContent>
+                    </Card>
+                  )}
+                </>
+              )}
+            </>
+          )}
+
+          {/* ════ LOOKUP VIEW ════ */}
+          {sidebarMode === "lookup" && (
+            <>
+              {!selectedCollection ? (
+                <div className="flex flex-col items-center justify-center h-[60vh] text-center px-4">
+                  <div className="w-20 h-20 bg-indigo-100 dark:bg-indigo-900/30 rounded-full flex items-center justify-center mb-6 shadow-inner">
+                    <Search className="w-10 h-10 text-indigo-500" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-200 mb-2">Data LookUp</h2>
+                  <p className="text-slate-500 dark:text-slate-400 max-w-md">Select a collection from the sidebar to start creating dynamic charts.</p>
+                </div>
+              ) : (
+                <>
+                  <Card className="bg-white/70 dark:bg-white/5 backdrop-blur-xl border border-black/10 dark:border-white/10 shadow-lg">
+                    <CardHeader className="pb-2 border-b border-slate-200/50 dark:border-slate-700/50">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                          <Search className="w-4 h-4 text-indigo-500" />
+                          LookUp
+                          <span className="text-xs font-normal text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">{selectedCollection}</span>
+                        </CardTitle>
+                        
+                        {/* Mode Toggle */}
+                        <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 w-full sm:w-auto">
+                           <button onClick={() => setLookupMode("manual")} className={`flex-1 sm:flex-none px-3 py-1 text-xs font-medium rounded-md transition-all ${lookupMode === "manual" ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm" : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"}`}>Manual</button>
+                           <button onClick={() => setLookupMode("ai")} className={`flex-1 sm:flex-none px-3 py-1 text-xs font-medium rounded-md transition-all ${lookupMode === "ai" ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm" : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"}`}>AI</button>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pt-4 flex flex-col gap-3">
+                       {lookupMode === "manual" ? (
+                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                           <div>
+                             <Label className="text-slate-700 dark:text-slate-300 text-xs mb-1 block">X-Axis</Label>
+                             <select value={lookupXAxis} onChange={e => setLookupXAxis(e.target.value)} className="w-full h-9 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
+                               <option value="">Select Field...</option>
+                               {Object.keys(schema).map(k => <option key={k} value={k}>{k}</option>)}
+                             </select>
+                           </div>
+                           <div>
+                             <Label className="text-slate-700 dark:text-slate-300 text-xs mb-1 block">Aggregation</Label>
+                             <select value={lookupAggType} onChange={e => setLookupAggType(e.target.value)} className="w-full h-9 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
+                               <option value="none">Raw Data</option>
+                               <option value="count">Count Records</option>
+                               <option value="sum">Sum</option>
+                               <option value="avg">Average</option>
+                               <option value="min">Min</option>
+                               <option value="max">Max</option>
+                             </select>
+                           </div>
+                           {lookupAggType !== "count" && lookupAggType !== "none" && (
+                             <div>
+                               <Label className="text-slate-700 dark:text-slate-300 text-xs mb-1 block">Y-Axis</Label>
+                               <select value={lookupYAxis} onChange={e => setLookupYAxis(e.target.value)} className="w-full h-9 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
+                                 <option value="">Select Field...</option>
+                                 {Object.keys(schema).map(k => <option key={k} value={k}>{k}</option>)}
+                               </select>
+                             </div>
+                           )}
+                           <div className="flex-1">
+                             <Label className="text-slate-700 dark:text-slate-300 text-xs mb-1 block">Chart</Label>
+                             <select value={lookupChartType} onChange={e => setLookupChartType(e.target.value)} className="w-full h-9 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 capitalize">
+                               {["bar", "line", "area", "pie", "scatter"].map(type => <option key={type} value={type}>{type}</option>)}
+                             </select>
+                           </div>
+                         </div>
+                       ) : (
+                         <div className="space-y-2">
+                            <Label className="text-slate-700 dark:text-slate-300 text-xs">Describe the chart you want to generate</Label>
+                            <Input placeholder="e.g. 'Show me a pie chart of transactions grouped by category'" value={lookupQuery} onChange={e => setLookupQuery(e.target.value)} disabled={lookupLoading}
+                                className="w-full h-10 px-3 text-sm bg-white/70 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 focus:border-indigo-500 rounded-md transition-colors shadow-sm" />
+                         </div>
+                       )}
+
+                       <div className="flex justify-end pt-1">
+                           <Button onClick={submitLookup} disabled={lookupLoading || (lookupMode === "manual" && !lookupXAxis) || (lookupMode === "ai" && !lookupQuery.trim())}
+                                className="w-full sm:w-auto h-9 px-6 text-sm font-semibold text-white border-0 rounded-md bg-indigo-600 hover:bg-indigo-700 shadow-sm transition-all">
+                                {lookupLoading ? <Loader2 className="w-4 h-4 animate-spin sm:mr-2" /> : <Search className="w-4 h-4 sm:mr-2 mr-0" />}
+                                <span className="hidden sm:inline">Generate Chart</span>
+                                <span className="sm:hidden">Generate</span>
+                           </Button>
+                       </div>
+                    </CardContent>
+                  </Card>
+
+                  {lookupError && (
+                    <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm border border-red-200 dark:border-red-800 mt-5">
+                      <AlertCircle className="w-4 h-4 flex-shrink-0" />{lookupError}
+                    </div>
+                  )}
+
+                  {lookupResult && (
+                    <Card className="bg-white/70 dark:bg-white/5 backdrop-blur-xl border border-black/10 dark:border-white/10 shadow-lg mt-4 flex-shrink-0">
+                      <CardHeader className="pb-2 border-b border-slate-200/50 dark:border-slate-700/50 flex flex-row items-center justify-between">
+                         <CardTitle className="text-base flex items-center gap-2">
+                            <BarChart2 className="w-4 h-4 text-indigo-500" /> Results
+                            <span className="text-xs font-normal text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">({lookupResult.count} records)</span>
+                         </CardTitle>
+                         {lookupResult.pipeline && lookupResult.pipeline.length > 0 && (
+                           <button onClick={() => setShowLookupPipeline(p => !p)} className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 transition-colors bg-transparent border-0 cursor-pointer">
+                             {showLookupPipeline ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />} Pipeline
+                           </button>
+                         )}
+                      </CardHeader>
+                      <CardContent className="pt-4 space-y-4">
+                         {showLookupPipeline && lookupResult.pipeline && (
+                           <pre className="text-xs bg-slate-900 text-green-400 rounded-lg p-3 overflow-x-auto max-h-40">{JSON.stringify(lookupResult.pipeline, null, 2)}</pre>
+                         )}
+
+                         {lookupResult.results.length > 0 && lookupResult.chartType !== "none" ? (
+                           <div className="rounded-lg bg-white/60 dark:bg-white/5 border border-slate-200/60 dark:border-slate-700/60 p-3">
+                             <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 capitalize">
+                               {lookupResult.chartType} chart
+                             </p>
+                             <AnalyticsChart data={lookupResult.results} chartType={lookupResult.chartType} />
+                           </div>
+                         ) : (
+                           <div className="text-center p-6 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-500 dark:text-slate-400">
+                             No chart data generated. Review the tabular results below.
+                           </div>
+                         )}
+
+                         {lookupResult.results.length > 0 && (
+                           <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
+                             <table className="min-w-full text-[13px]">
+                               <thead>
+                                 <tr className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase text-[11px] tracking-wider">
+                                   {Object.keys(lookupResult.results[0]).map(c => (
+                                     <th key={c} className="px-3 py-2 text-left font-semibold border-b border-slate-200 dark:border-slate-700">{c}</th>
+                                   ))}
+                                 </tr>
+                               </thead>
+                               <tbody>{lookupResult.results.map((row, i) => (
+                                 <tr key={i} className={i % 2 === 0 ? "bg-white dark:bg-slate-900/50" : "bg-slate-50/50 dark:bg-slate-800/30"}>
+                                   {Object.keys(lookupResult.results[0]).map(c => (
+                                     <td key={c} className="px-3 py-2 text-slate-700 dark:text-slate-300 whitespace-nowrap border-b border-slate-100 dark:border-slate-800">
+                                       {row[c] == null ? <span className="text-slate-400 italic">null</span> : typeof row[c] === "object" ? <span className="text-xs font-mono text-slate-500">{JSON.stringify(row[c])}</span> : String(row[c])}
+                                     </td>
+                                   ))}
+                                 </tr>
+                               ))}</tbody>
+                             </table>
+                           </div>
+                         )}
                       </CardContent>
                     </Card>
                   )}

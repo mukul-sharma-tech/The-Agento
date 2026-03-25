@@ -85,7 +85,7 @@ function validateRow(
     if (def.unique || def.primaryKey) {
       if (!seenUnique[field]) seenUnique[field] = new Set();
       if (seenUnique[field].has(doc[field])) {
-        errors.push(`"${field}" must be unique — duplicate value "${doc[field]}" in file`);
+        errors.push(`"${field}" must be unique - duplicate value "${doc[field]}" in file`);
         continue;
       }
       seenUnique[field].add(doc[field]);

@@ -20,13 +20,13 @@ const PRO_OPTIONS = [
 ];
 
 const COLOR: Record<string, { border: string; bg: string; badge: string; btn: string; check: string; ring: string }> = {
-  slate:  { border: "border-slate-200 dark:border-slate-700",   bg: "bg-white/60 dark:bg-white/5",           badge: "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400",      btn: "bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-default",                                                    check: "text-slate-400",  ring: "" },
+  slate: { border: "border-slate-200 dark:border-slate-700", bg: "bg-white/60 dark:bg-white/5", badge: "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400", btn: "bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-default", check: "text-slate-400", ring: "" },
   indigo: { border: "border-indigo-400 dark:border-indigo-500", bg: "bg-indigo-50/70 dark:bg-indigo-900/20", badge: "bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300", btn: "bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white shadow-lg shadow-indigo-500/30", check: "text-indigo-500", ring: "ring-2 ring-indigo-400/40" },
-  violet: { border: "border-violet-300 dark:border-violet-700", bg: "bg-white/60 dark:bg-white/5",           badge: "bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300",  btn: "bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white shadow-lg shadow-violet-500/30", check: "text-violet-500", ring: "" },
+  violet: { border: "border-violet-300 dark:border-violet-700", bg: "bg-white/60 dark:bg-white/5", badge: "bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300", btn: "bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white shadow-lg shadow-violet-500/30", check: "text-violet-500", ring: "" },
 };
 
 const FAQ = [
-  { q: "What counts as an AI call?", a: "Any request that hits the LLM — a chat message, a voice query, a Query Genius operation, or an analytics run. Uploads and schema reads don't count." },
+  { q: "What counts as an AI call?", a: "Any request that hits the LLM - a chat message, a voice query, a Query Genius operation, or an analytics run. Uploads and schema reads don't count." },
   { q: "What's the difference between Pro and Business?", a: "Pro (₹350/mo) lets you pick either AI Chat + Voice Call OR Query Genius. Business (₹699/mo) gives you both together with unlimited calls." },
   { q: "How do I activate my plan?", a: "Click the request button, and our team will confirm your plan within 24 hours. You'll get an email once it's active." },
   { q: "Is there a team plan?", a: "Business covers your whole company under one account. Reach out if you need volume pricing for multiple teams." },
@@ -139,7 +139,7 @@ export default function PricingPage() {
             </button>
           </div>
 
-          {/* Pro — with module toggle */}
+          {/* Pro - with module toggle */}
           <div className={`relative flex flex-col rounded-2xl border-2 ${COLOR.indigo.border} ${COLOR.indigo.bg} ${COLOR.indigo.ring} backdrop-blur-xl p-7 shadow-xl transition-transform hover:-translate-y-1`}>
             <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 flex items-center gap-1 px-3 py-1 rounded-full bg-indigo-600 text-white text-xs font-semibold shadow-lg">
               <Zap className="w-3 h-3" /> Most Popular
