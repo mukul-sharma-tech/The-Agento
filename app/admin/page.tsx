@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Loader2, Check, X, User, Users, Clock, Shield,
-  CreditCard, Bell, Trash2, CheckCircle2, XCircle, Timer,
+  CreditCard, Bell, Trash2, CheckCircle2, XCircle, Timer, Link, Copy, RefreshCw, ToggleLeft, ToggleRight,
 } from "lucide-react";
 
 interface Employee {
@@ -32,7 +32,17 @@ interface SubRequest {
   resolvedAt?: string;
 }
 
-type Tab = "employees" | "subscriptions";
+interface PublicLinkData {
+  _id: string;
+  token: string;
+  enabled: boolean;
+  features: string[];
+  guestCallCount: number;
+  createdAt: string;
+}
+
+
+type Tab = "employees" | "subscriptions" | "publiclink";
 type SubTab = "pending" | "approved" | "rejected";
 
 const PLAN_LABEL: Record<string, string> = {
@@ -59,6 +69,9 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [publicLink, setPublicLink] = useState<PublicLinkData | null>(null);
+  const [publicLinkLoading, setPublicLinkLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
@@ -71,7 +84,7 @@ export default function AdminPage() {
 
   const fetchAll = async () => {
     setLoading(true);
-    await Promise.all([fetchEmployees(), fetchSubRequests()]);
+    await Promise.all([fetchEmployees(), fetchSubRequests(), fetchPublicLink()]);
     setLoading(false);
   };
 
@@ -92,6 +105,69 @@ export default function AdminPage() {
       const data = await res.json();
       if (res.ok) setSubRequests(data.requests || []);
     } catch (e) { console.error(e); }
+  };
+
+  const fetchPublicLink = async () => {
+    try {
+      const res = await fetch("/api/auth/public-link");
+      const data = await res.json();
+      if (res.ok) setPublicLink(data.link);
+    } catch (e) { console.error(e); }
+  };
+
+  const generateLink = async () => {
+    setPublicLinkLoading(true);
+    try {
+      const res = await fetch("/api/auth/public-link", { method: "POST" });
+      const data = await res.json();
+      if (res.ok) setPublicLink(data.link);
+    } catch (e) { console.error(e); }
+    finally { setPublicLinkLoading(false); }
+  };
+
+  const toggleLink = async () => {
+    setPublicLinkLoading(true);
+    try {
+      const res = await fetch("/api/auth/public-link", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "toggle" }),
+      });
+      const data = await res.json();
+      if (res.ok) setPublicLink(data.link);
+    } catch (e) { console.error(e); }
+    finally { setPublicLinkLoading(false); }
+  };
+
+  const regenerateLink = async () => {
+    if (!confirm("Regenerate link? The old link will stop working immediately.")) return;
+    setPublicLinkLoading(true);
+    try {
+      const res = await fetch("/api/auth/public-link", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "regenerate" }),
+      });
+      const data = await res.json();
+      if (res.ok) setPublicLink(data.link);
+    } catch (e) { console.error(e); }
+    finally { setPublicLinkLoading(false); }
+  };
+
+  const deleteLink = async () => {
+    if (!confirm("Delete the public link? Anyone using it will lose access.")) return;
+    setPublicLinkLoading(true);
+    try {
+      const res = await fetch("/api/auth/public-link", { method: "DELETE" });
+      if (res.ok) setPublicLink(null);
+    } catch (e) { console.error(e); }
+    finally { setPublicLinkLoading(false); }
+  };
+
+  const copyLink = (url: string) => {
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const handleEmployeeAction = async (employeeId: string, action: "verify" | "reject") => {
@@ -219,6 +295,10 @@ export default function AdminPage() {
                 )}
               </button>
             )}
+            <button onClick={() => setTab("publiclink")}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${tab === "publiclink" ? "bg-emerald-600 text-white shadow-lg" : "bg-white/60 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 border border-black/10 dark:border-white/10 hover:bg-white/80"}`}>
+              <Link className="w-4 h-4" /> Public Link
+            </button>
           </div>
 
           {/* ── EMPLOYEES TAB ── */}
@@ -422,6 +502,122 @@ export default function AdminPage() {
                 </CardContent>
               </Card>
             </>
+          )}
+
+          {/* ── PUBLIC LINK TAB ── */}
+          {tab === "publiclink" && (
+            <Card className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-xl border-black/10 dark:border-white/10 shadow-lg">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-slate-900 dark:text-slate-100">
+                  <Link className="w-5 h-5 text-emerald-500" /> Shareable Public Link
+                </CardTitle>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                  Generate a link that lets anyone use your Agento AI chat without signing up. Embed it on your website as an iframe or share it directly.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {!publicLink ? (
+                  <div className="flex flex-col items-center gap-4 py-8 text-center">
+                    <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+                      <Link className="w-8 h-8 text-emerald-500" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-slate-800 dark:text-slate-200">No public link yet</p>
+                      <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Generate one to let external users access your AI chat.</p>
+                    </div>
+                    <Button onClick={generateLink} disabled={publicLinkLoading}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white px-6">
+                      {publicLinkLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Link className="w-4 h-4 mr-2" />}
+                      Generate Public Link
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    {/* Status badge */}
+                    <div className="flex items-center gap-3">
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${publicLink.enabled ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400" : "bg-slate-100 dark:bg-slate-700 text-slate-500"}`}>
+                        {publicLink.enabled ? "Active" : "Disabled"}
+                      </span>
+                      <span className="text-xs text-slate-400">{publicLink.guestCallCount} guest calls total</span>
+                    </div>
+
+                    {/* Feature toggles */}
+                    <div>
+                      <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Exposed Features</p>
+                      <div className="flex flex-wrap gap-2">
+                        {(["chat", "voice"] as const).map(feat => {
+                          const active = publicLink.features?.includes(feat);
+                          const toggle = async () => {
+                            const current: string[] = publicLink.features || [];
+                            const next = active ? current.filter(f => f !== feat) : [...current, feat];
+                            if (next.length === 0) return; // must keep at least one
+                            setPublicLinkLoading(true);
+                            try {
+                              const res = await fetch("/api/auth/public-link", {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ action: "features", features: next }),
+                              });
+                              const data = await res.json();
+                              if (res.ok) setPublicLink(data.link);
+                            } catch (e) { console.error(e); }
+                            finally { setPublicLinkLoading(false); }
+                          };
+                          return (
+                            <button key={feat} onClick={toggle} disabled={publicLinkLoading}
+                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${active ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700" : "bg-slate-100 dark:bg-slate-700/50 text-slate-500 border-slate-200 dark:border-slate-600 opacity-60"}`}>
+                              {feat === "chat" ? "💬" : "🎙️"} {feat.charAt(0).toUpperCase() + feat.slice(1)}
+                              {active ? <CheckCircle2 className="w-3.5 h-3.5 ml-1" /> : <X className="w-3.5 h-3.5 ml-1 opacity-50" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <p className="text-xs text-slate-400 dark:text-slate-500 mt-1.5">Click to toggle. At least one feature must remain active.</p>
+                    </div>
+                    {(() => {
+                      const guestUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/guest/${publicLink.token}`;
+                      return (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2 p-3 bg-slate-100/70 dark:bg-slate-700/50 rounded-xl border border-slate-200/60 dark:border-slate-600/60">
+                            <span className="flex-1 text-sm text-slate-700 dark:text-slate-300 font-mono truncate">{guestUrl}</span>
+                            <button onClick={() => copyLink(guestUrl)}
+                              className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                              <Copy className="w-3.5 h-3.5" />
+                              {copied ? "Copied!" : "Copy"}
+                            </button>
+                          </div>
+
+                          {/* Embed snippet */}
+                          <div>
+                            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Embed on your website</p>
+                            <div className="p-3 bg-slate-900 dark:bg-slate-950 rounded-xl overflow-x-auto">
+                              <code className="text-xs text-emerald-400 whitespace-pre">{`<iframe\n  src="${guestUrl}"\n  width="100%"\n  height="700"\n  frameborder="0"\n  allow="microphone"\n></iframe>`}</code>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Actions */}
+                    <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
+                      <Button onClick={toggleLink} disabled={publicLinkLoading}
+                        className={`flex items-center gap-2 h-9 px-4 text-sm ${publicLink.enabled ? "bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600" : "bg-emerald-600 text-white hover:bg-emerald-700"}`}>
+                        {publicLinkLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : publicLink.enabled ? <ToggleRight className="w-3.5 h-3.5" /> : <ToggleLeft className="w-3.5 h-3.5" />}
+                        {publicLink.enabled ? "Disable" : "Enable"}
+                      </Button>
+                      <Button onClick={regenerateLink} disabled={publicLinkLoading}
+                        className="flex items-center gap-2 h-9 px-4 text-sm bg-transparent text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700">
+                        <RefreshCw className="w-3.5 h-3.5" /> Regenerate
+                      </Button>
+                      <Button onClick={deleteLink} disabled={publicLinkLoading}
+                        className="flex items-center gap-2 h-9 px-4 text-sm bg-transparent text-red-600 border border-red-300 dark:border-red-700 hover:bg-red-50 dark:hover:bg-red-900/20">
+                        <Trash2 className="w-3.5 h-3.5" /> Delete
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
           )}
 
         </div>

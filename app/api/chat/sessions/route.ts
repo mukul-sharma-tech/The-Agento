@@ -3,20 +3,24 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectDB } from "@/lib/db";
 import ChatSession from "@/models/ChatSession";
+import { resolveGuestToken } from "@/lib/guestAuth";
 
 // GET - list all sessions for the current user (optionally filtered by mode)
 export async function GET(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    const guestToken = req.headers.get("x-guest-token");
+    const guest = session?.user ? null : await resolveGuestToken(guestToken);
+    const identity = session?.user ?? guest;
+    if (!identity) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
     const { searchParams } = new URL(req.url);
-    const mode = searchParams.get("mode"); // "chat" | "voice" | null (all)
+    const mode = searchParams.get("mode");
 
     await connectDB();
     const filter: Record<string, string> = {
-      company_id: session.user.company_id,
-      user_email: session.user.email ?? "",
+      company_id: identity.company_id,
+      user_email: identity.email ?? "",
     };
     if (mode) filter.mode = mode;
 
@@ -36,15 +40,18 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    const guestToken = req.headers.get("x-guest-token");
+    const guest = session?.user ? null : await resolveGuestToken(guestToken);
+    const identity = session?.user ?? guest;
+    if (!identity) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
     const body = await req.json().catch(() => ({}));
     const mode = body.mode === "voice" ? "voice" : "chat";
 
     await connectDB();
     const chatSession = await ChatSession.create({
-      company_id: session.user.company_id,
-      user_email: session.user.email ?? "",
+      company_id: identity.company_id,
+      user_email: identity.email ?? "",
       title: "New Chat",
       mode,
       messages: [],

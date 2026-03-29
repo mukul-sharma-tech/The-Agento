@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import {
-  Bot, FileText, LogOut, Mic, Shield, Zap, CreditCard,
+  Bot, FileText, LogOut, Shield, Zap, CreditCard,
   MessageSquare, BarChart3, Database, ArrowRight, Sparkles,
   TrendingUp, Clock, CheckCircle2,
 } from "lucide-react";
@@ -245,26 +245,14 @@ export default function DashboardPage() {
 
             <FeatureCard
               icon={<Bot className="w-6 h-6 text-white" />}
-              title="AI Chat"
-              desc="Chat with your documents. Get cited answers with multi-step reasoning."
-              gradient="from-indigo-500 to-blue-500"
+              title="AI Chat & Voice"
+              desc="Chat or talk with your documents. Switch between text and voice anytime."
+              gradient="from-indigo-500 to-violet-500"
               shadowColor="rgba(99,102,241,0.25)"
-              onClick={() => router.push("/chat")}
-              usage={chatUsage}
+              onClick={() => router.push("/chat-voice")}
+              usage={chatUsage.used + voiceUsage.used > 0 ? { used: chatUsage.used + voiceUsage.used, limit: chatUsage.limit + voiceUsage.limit } : undefined}
               unlimited={unlimited}
               usageColor="bg-indigo-500"
-            />
-
-            <FeatureCard
-              icon={<Mic className="w-6 h-6 text-white" />}
-              title="Voice Call"
-              desc="Talk to your knowledge base. Real-time voice queries, instant answers."
-              gradient="from-violet-500 to-purple-500"
-              shadowColor="rgba(139,92,246,0.25)"
-              onClick={() => router.push("/voice-call")}
-              usage={voiceUsage}
-              unlimited={unlimited}
-              usageColor="bg-violet-500"
             />
 
             <FeatureCard
@@ -325,7 +313,7 @@ export default function DashboardPage() {
             desc="Browse and continue your previous AI chat sessions."
             gradient="from-slate-500 to-slate-600"
             shadowColor="rgba(100,116,139,0.2)"
-            onClick={() => router.push("/chat")}
+            onClick={() => router.push("/chat-voice")}
             usageColor=""
           />
         </div>

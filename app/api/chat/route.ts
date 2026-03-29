@@ -5,6 +5,7 @@ import { connectDB } from "@/lib/db";
 import VectorChunk from "@/models/VectorChunk";
 import { callLLM, getEmbedding } from "@/lib/llm";
 import { checkAndIncrementAILimit } from "@/lib/rateLimit";
+import { resolveGuestToken, incrementGuestCallCount } from "@/lib/guestAuth";
 
 
 function cosineSimilarity(a: number[], b: number[]): number {
@@ -125,8 +126,11 @@ async function textSearch(query: string, companyId: string): Promise<string[]> {
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    
-    if (!session?.user) {
+    const guestToken = req.headers.get("x-guest-token");
+    const guest = session?.user ? null : await resolveGuestToken(guestToken);
+    const identity = session?.user ?? guest;
+
+    if (!identity) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
@@ -138,19 +142,23 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Message is required" }, { status: 400 });
     }
 
-    // ── Rate limit check ──────────────────────────────────────────────────────
-    const limit = await checkAndIncrementAILimit(session.user.email!, isVoiceMode ? "voice" : "chat");
-    if (!limit.allowed) {
-      return NextResponse.json(
-        { message: "AI call limit reached", limitReached: true, used: limit.used, limit: limit.limit },
-        { status: 429 }
-      );
+    // ── Rate limit check (skip for guests — they share company quota) ─────────
+    if (session?.user) {
+      const limit = await checkAndIncrementAILimit(session.user.email!, isVoiceMode ? "voice" : "chat");
+      if (!limit.allowed) {
+        return NextResponse.json(
+          { message: "AI call limit reached", limitReached: true, used: limit.used, limit: limit.limit },
+          { status: 429 }
+        );
+      }
+    } else if (guest) {
+      await incrementGuestCallCount(guest.token);
     }
 
     await connectDB();
-    const companyId = session.user.company_id;
+    const companyId = identity.company_id;
 
-    console.log(`Chat request from user: ${session.user.email}, company_id: ${companyId}`);
+    console.log(`Chat request from user: ${identity.email}, company_id: ${companyId}`);
 
     // Get all vector chunks for this company
     const allChunks = await VectorChunk.find({
@@ -236,7 +244,7 @@ export async function POST(req: Request) {
 
 CONTEXT:
 ${context || "No relevant documents found."}`
-      : `You are a helpful AI assistant for ${session.user.company_name || "the company"}.
+      : `You are a helpful AI assistant for ${identity.company_name || "the company"}.
 Use the following context from company documents to answer the user's question.
 If the context doesn't contain relevant information, say so and provide a general answer.
 
