@@ -44,7 +44,7 @@ export async function POST(request: Request) {
     if (!commitsResponse.ok) throw new Error('Failed to fetch commits');
     const commitsData = await commitsResponse.json();
 
-    const commits = commitsData.slice(0, 2).map((c: any) => ({
+    const commits = commitsData.slice(0, 5).map((c: any) => ({
       date: new Date(c.commit.author.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
       message: c.commit.message
     }));
