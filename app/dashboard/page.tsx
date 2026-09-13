@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   Bot, FileText, LogOut, Shield, Zap, CreditCard,
   MessageSquare, BarChart3, Database, ArrowRight, Sparkles,
-  TrendingUp, Clock, CheckCircle2,
+  TrendingUp, Clock, CheckCircle2, FlaskConical,
 } from "lucide-react";
 import Image from "next/image";
 import PricingModal from "@/components/PricingModal";
@@ -265,6 +265,17 @@ export default function DashboardPage() {
               usage={queryUsage}
               unlimited={unlimited}
               usageColor="bg-cyan-500"
+            />
+
+            <FeatureCard
+              icon={<FlaskConical className="w-6 h-6 text-white" />}
+              title="Research Suite"
+              desc="Notebook LLM, Human Writer, AI Research Paper generator, and AI Coding Assistant — all in one place."
+              gradient="from-amber-500 to-orange-500"
+              shadowColor="rgba(245,158,11,0.25)"
+              onClick={() => router.push("/research")}
+              usageColor="bg-amber-500"
+              badge="New"
             />
 
           </div>

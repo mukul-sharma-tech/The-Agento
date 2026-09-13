@@ -17,6 +17,7 @@
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "docx": "^9.7.1",
     "framer-motion": "^12.25.0",
     "html2canvas": "^1.4.1",
     "jspdf": "^2.5.2",
