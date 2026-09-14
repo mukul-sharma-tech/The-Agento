@@ -214,13 +214,13 @@ export default function IngestDocPage() {
                 <Input
                   id="file-input"
                   type="file"
-                  accept=".txt,.md,.pdf,.csv,.json"
+                  accept=".txt,.md,.pdf,.csv,.json,.jpg,.jpeg,.png"
                   onChange={handleFileChange}
                   disabled={uploading}
                   className="mt-1 bg-white/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700"
                 />
                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                  Supported formats: TXT, MD, PDF, CSV, JSON
+                  Supported formats: TXT, MD, PDF, CSV, JSON, JPG, PNG (with OCR)
                 </p>
               </div>
 
