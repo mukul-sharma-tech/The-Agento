@@ -1,93 +1,55 @@
-/**
- * Shared OCR and Vision LLM helpers.
- * Designed to integrate seamlessly with Ollama's multimodal capabilities.
- */
-
-// ── Ollama Vision (Local / Air-gapped) ────────────────────────────────────────
+import { createWorker } from 'tesseract.js';
 
 /**
- * Core function to call Ollama with an image for OCR and visual reasoning.
- */
-async function _callOllamaVision(
-  prompt: string, 
-  base64Image: string, 
-  timeoutMs = 120000
-): Promise<string> {
-  const url = process.env.OLLAMA_URL || "http://localhost:11434";
-  // Auto-route to a vision-capable open-weight model
-  const model = process.env.OLLAMA_VISION_MODEL || "llama3.2-vision"; 
-
-  const res = await fetch(`${url}/api/generate`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ 
-      model, 
-      prompt, 
-      images: [base64Image],
-      stream: false, 
-      options: { 
-        temperature: 0.1, // Low temp for highly accurate OCR/data extraction
-        top_p: 0.9 
-      } 
-    }),
-    signal: AbortSignal.timeout(timeoutMs),
-  });
-
-  if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`Ollama Vision error ${res.status}: ${errText}`);
-  }
-  
-  const data = await res.json();
-  return data.response || "";
-}
-
-// ── Public: extractTextFromImage ──────────────────────────────────────────────
-
-/**
- * Basic OCR: Extracts raw text from scanned documents, handwritten notes, 
- * or engineering drawings.
+ * Basic OCR: Extracts raw text from scanned documents using Tesseract.js
  */
 export async function extractTextFromImage(base64Image: string): Promise<string> {
-  const prompt = `You are a highly precise OCR system. 
-Please extract all text from this image exactly as it appears. 
-Preserve formatting, line breaks, and indentation where possible. 
-Do not add any commentary or explanation.`;
-
+  let worker = null;
   try {
-    const result = await _callOllamaVision(prompt, base64Image);
-    console.log("[OCR] Text successfully extracted via Ollama");
-    return result.trim();
+    worker = await createWorker('eng');
+    
+    // Prefix data URI if not present
+    let imageSrc = base64Image;
+    if (!base64Image.startsWith('data:image')) {
+      imageSrc = `data:image/jpeg;base64,${base64Image}`;
+    }
+    
+    const { data: { text } } = await worker.recognize(imageSrc);
+    console.log("[OCR] Text successfully extracted via Tesseract.js");
+    return text.trim();
   } catch (err) {
     console.error("[OCR] Extraction failed:", (err as Error).message);
     throw err;
+  } finally {
+    if (worker) {
+      await worker.terminate();
+    }
   }
 }
 
-// ── Public: analyzeImageForAnalytics ──────────────────────────────────────────
-
 /**
- * Advanced Vision Analytics: Extracts structured data (JSON) from 
- * inspection reports, financials, or complex charts for use in Query Genius.
+ * Advanced Vision Analytics: Tesseract cannot natively format output to JSON.
+ * We will do our best to extract text and wrap it in a JSON structure.
+ * This is a massive downgrade from Ollama Vision as requested.
  */
 export async function analyzeImageForAnalytics(
   base64Image: string, 
   context: string = "general data"
 ): Promise<any> {
-  const prompt = `You are an expert data analyst and OCR system. 
-Analyze the provided image containing ${context}. 
-Extract the key data points, measurements, tables, and findings into a strictly formatted JSON object. 
-Ensure the JSON is valid, flat, and uses snake_case for keys.
-Do not wrap the response in markdown code blocks, return raw JSON only.`;
-
   try {
-    const result = await _callOllamaVision(prompt, base64Image, 180000); // 3 min timeout for heavy analysis
-    console.log("[OCR-Analytics] Structured data successfully extracted");
+    const rawText = await extractTextFromImage(base64Image);
     
-    // Clean up potential markdown formatting
-    const cleanedResult = result.replace(/^```(?:json)?\n?/i, '').replace(/```$/i, '').trim();
+    // Tesseract just gives raw text. We have to fake the JSON structure 
+    // since we can't reliably parse tables with basic OCR.
+    const result = {
+      context: context,
+      extracted_raw_text: rawText,
+      warning: "Extracted via Tesseract. Table structure and layout are likely lost.",
+      data_points: rawText.split('\n').filter(line => line.trim().length > 0)
+    };
     
-    return JSON.parse(cleanedResult);
+    console.log("[OCR-Analytics] Tesseract basic extraction completed");
+    return result;
   } catch (err) {
     console.error("[OCR-Analytics] Analytics extraction failed:", (err as Error).message);
     throw err;
