@@ -1,11 +1,10 @@
-# Agento — Complete System Architecture & Interview Guide
+# Agento — Complete System Architecture & Technical Reference
 
-> **Product:** Agento (pilot v0.2)  
-> **Repo package name:** `synopsee`  
-> **Stack:** Next.js 16 · React 19 · TypeScript 5 · MongoDB · Ollama / Groq · HuggingFace  
-> **Purpose:** Multi-tenant enterprise AI assistant over company documents (RAG) + structured data (Query Genius) + voice + shareable guest links.
+> **Product:** Agento (v0.3 — Research Suite update)
+> **Stack:** Next.js 16 · React 19 · TypeScript 5 · MongoDB · Ollama / Groq · Monaco Editor · File System Access API
+> **Purpose:** Multi-tenant enterprise AI platform — document RAG, structured data analytics, voice, embeddable guest links, and a full Research Suite (Notebook LLM, Human Writer, AI Research Papers, VS Code-style code editor).
 
-This document covers **architecture, features, APIs, workflows, methodology, and interview Q&A** (Frontend, Backend, AI/ML, RAG, Agents).
+This document covers architecture, features, APIs, data models, methodology, design patterns, and end-to-end workflows for the entire platform.
 
 ---
 
@@ -24,14 +23,14 @@ This document covers **architecture, features, APIs, workflows, methodology, and
 10. [Query Genius (NL → MongoDB)](#10-query-genius-nl--mongodb)
 11. [Voice Mode Architecture](#11-voice-mode-architecture)
 12. [Guest / Public Link Architecture](#12-guest--public-link-architecture)
-13. [LLM & Embedding Fallback Chain](#13-llm--embedding-fallback-chain)
-14. [Rate Limiting & Subscriptions](#14-rate-limiting--subscriptions)
-15. [Email Flows](#15-email-flows)
-16. [Environment & External Connections](#16-environment--external-connections)
-17. [Methodology & Design Patterns (Deep Dive)](#17-methodology--design-patterns-deep-dive)
-18. [End-to-End Workflow Diagrams](#18-end-to-end-workflow-diagrams)
-19. [Interview Q&A](#19-interview-qa)
-20. [Known Caveats / Honest Trade-offs](#20-known-caveats--honest-trade-offs)
+13. [Research Suite Architecture](#13-research-suite-architecture)
+14. [LLM & Embedding Fallback Chain](#14-llm--embedding-fallback-chain)
+15. [Rate Limiting & Subscriptions](#15-rate-limiting--subscriptions)
+16. [Email Flows](#16-email-flows)
+17. [Environment & External Connections](#17-environment--external-connections)
+18. [Methodology & Design Patterns](#18-methodology--design-patterns)
+19. [End-to-End Workflow Diagrams](#19-end-to-end-workflow-diagrams)
+20. [Known Caveats / Trade-offs](#20-known-caveats--trade-offs)
 
 ---
 
@@ -39,170 +38,130 @@ This document covers **architecture, features, APIs, workflows, methodology, and
 
 ### What problem does Agento solve?
 
-Most companies already have knowledge locked in PDFs, policies, SOPs, and spreadsheets. Employees waste time searching Drive folders or pinging teammates for the same answers. Separately, business users who are not Mongo experts still want charts and “what happened / why / what next” insights from CSV-style data. Agento is built as a single product that attacks both problems for a company: **ask the documents** and **ask the tables**, with optional voice and a public guest link for external users.
+Companies have knowledge locked in PDFs, HR policies, SOPs, and spreadsheets. Employees waste time searching for the same answers. Business users who are not database experts want charts and analytical insights from their data. Researchers need tools to write, cite, and generate structured papers. Developers want to explore codebases with an AI that actually understands the code. Agento attacks all of these problems from one authenticated dashboard.
 
-### How to think about the product in one mental model
+### Three mental models
 
-Imagine each company as an isolated “workspace.” Inside that workspace there are two knowledge surfaces:
+**1. Two AI brains over data:**
+- **Unstructured knowledge** → RAG over `vector_store` chunks (similarity search + grounded generation)
+- **Structured data** → LLM generates MongoDB aggregation pipelines against `qg_*` collections (query planning + real execution)
 
-1. **Unstructured knowledge (documents).** An admin uploads files. The system breaks them into smaller passages, converts each passage into a numeric vector (embedding), and stores those vectors. When someone asks a question, Agento finds the most similar passages and feeds them into an LLM so the answer is grounded in the company’s own text. That whole pattern is called **RAG (Retrieval-Augmented Generation)**.
+**2. One Research Suite with four specialized tools:**
+- **Notebook LLM** — per-notebook persistent RAG chat over any documents you upload
+- **Human Writer** — a ghostwriter chatbot that permanently learns your writing style
+- **AI Research Summary** — multi-agent paper generator with photon animation + 5 export formats
+- **AI Coding Assistant** — a full VS Code-style local code editor with Monaco + File System Access API
 
-2. **Structured knowledge (tables / CSVs).** A user uploads a CSV into Query Genius. The system stores rows in a MongoDB collection that is prefixed with that company’s ID. When the user asks an analytical question in English, the LLM does **not** invent the numbers. Instead it proposes a MongoDB aggregation pipeline; the server runs that pipeline on real data and returns rows, an insight, and often a chart. That pattern is **NL → Query (Text-to-Mongo)**.
+**3. One shared infrastructure layer:**
+Auth, tenancy, LLM fallback, embedding pipeline, rate limiting, and email all serve every feature. Features don't reinvent the wheel — they call `callLLM()`, `getEmbedding()`, `connectDB()`, and `checkAndIncrementAILimit()`.
 
-Everything else in the app — login, roles, voice mode, guest iframe, usage limits — exists to make those two brains safe, usable, and shareable.
+### Who uses it
 
-### Who uses it, and what each person does
+- **Admin** — uploads documents, verifies employees, manages the public guest link, approves subscriptions
+- **Employee** — uses chat, voice, Query Genius, and Research Suite after email + admin verification
+- **Guest** — opens a tokenized link (or iframe) with only the features the admin exposed; no account needed
 
-An **admin** creates the company presence (or signs up as admin), uploads documents, verifies employees, manages the public guest link, and may handle subscription requests. An **employee** logs in after email verification and admin approval, then uses chat, voice, and Query Genius within the company boundary. A **guest** never creates an account; they open a tokenized link (or an iframe) and only see the features the admin exposed (chat and/or voice). Guests still hit the same company document corpus — they are not a separate AI; they are a different identity path into the same tenant.
+### Mental checklist for any feature
 
-### How a typical “day in the life” flows through the system
-
-First the admin uploads an HR policy PDF. The upload API extracts text, cleans noisy lines, chunks the text into ~1000-character windows with overlap, embeds each chunk, and stores vectors tagged with `company_id`, filename, and category. Later an employee opens `/chat-voice`, types “How do I apply for leave?”, and the chat API embeds that question, compares it with up to 100 company chunks using cosine similarity, keeps scores above 0.2, takes the **top 5**, builds a prompt with those passages plus recent chat history, and calls the LLM (Ollama first, Groq if needed). The UI shows the answer and citations (which files were used). If the question looks like a process, a second LLM call may produce a Mermaid flowchart.
-
-If the same employee switches to voice, the browser listens with SpeechRecognition, submits the transcript to the **same** `/api/chat` endpoint with `mode: "voice"`, and speaks a shorter answer with `speechSynthesis`. While the assistant is speaking, recognition is stopped so the mic does not hear the AI and loop.
-
-Separately, in Query Genius, the employee uploads sales CSV data, asks “Show monthly revenue by region,” and either builds a chart manually (axes + aggregation) or lets AI propose a pipeline. For deeper analysis they pick Descriptive / Diagnostic / Predictive / Prescriptive; the server again asks the LLM for a pipeline and an insight, then executes the pipeline and charts the real results.
-
-### What “architecture” means in this project
-
-Architecture here is not a pile of microservices. It is a **Next.js full-stack application** acting as a **BFF (Backend for Frontend)**: React pages talk to Route Handlers under `/api/*`, those handlers talk to MongoDB and to LLM/embedding providers, and identity is either a NextAuth JWT session or a guest token header. The important architectural idea is **shared infrastructure, separated intelligence paths**: one auth layer, one tenancy key (`company_id`), one LLM helper (`lib/llm.ts`), but two different AI methodologies (RAG vs Text-to-Mongo) because unstructured text and tabular data need different treatment.
-
-### Mental checklist before reading diagrams
-
-When you look at any diagram in this document, map it to these questions:
-
-1. **Who is the actor?** Admin, employee, or guest?  
-2. **Which identity path?** Cookie session or `x-guest-token`?  
-3. **Which brain?** Document RAG or Query Genius?  
-4. **Where is truth stored?** `vector_store` passages, or `qg_{company}_*` rows?  
-5. **Where does the model help?** Ranking/context (RAG), or writing a query/pipeline (QG)?  
-6. **What must never leak?** Another company’s documents or collections.  
-
-If you can answer those six for a feature, you understand that feature’s architecture.
+When reading any diagram: Who is the actor? Which identity path (session cookie or `x-guest-token`)? Which AI brain (RAG, NL→Mongo, Research Suite)? Where is truth stored? Where does the model help vs execute real data? What must never leak across tenants?
 
 ---
 
 ## 1. Executive Overview
 
-**Agento** is a **company-scoped (multi-tenant) AI platform**. In practical terms, that means many companies can use the same deployed app, but each company’s documents, chat history, Query Genius collections, and guest links are isolated by `company_id`. The product is intentionally “pilot-shaped”: one Next.js codebase, MongoDB for persistence, and a local-first LLM stack with cloud fallbacks so demos keep working when Ollama is down.
+Agento is a **company-scoped (multi-tenant) AI platform**. Many companies share one deployment, but each company's documents, sessions, Query Genius collections, and guest links are isolated by `company_id`.
 
-At a capability level, Agento offers:
+At a capability level:
+
 | Capability | What it does |
 |---|---|
-| **AI Chat** | Ask questions over uploaded company documents (RAG) |
-| **Voice Call** | Speak questions; browser STT → same RAG → TTS answer |
-| **Document Ingest** | Admins upload PDF/TXT/CSV/MD/JSON → chunk → embed → store |
-| **Query Genius** | Natural language CRUD + analytics over company CSV/Mongo collections |
-| **LookUp Charts** | Manual or AI-generated Mongo aggregations → Recharts |
+| **AI Chat + Voice** | RAG over uploaded company documents; voice uses browser STT/TTS |
+| **Document Ingest** | PDF/TXT/CSV/MD/JSON → chunk → embed → `vector_store` |
+| **Query Genius** | NL CRUD + 4-mode analytics + LookUp charts over company CSV data |
 | **Public Guest Link** | Embeddable iframe chat/voice for external users (no login) |
-| **Admin Panel** | Employees, subscriptions, public link feature toggles |
-
-**Core idea:** One product with two AI “brains” that share identity and infrastructure but use different methods:
-
-1. **Unstructured knowledge** → RAG over `vector_store` chunks (similarity search + grounded generation).  
-2. **Structured data** → LLM generates MongoDB aggregations / filters against `qg_*` collections (query planning + real execution).  
-
-Both share the same auth, tenancy (`company_id`), rate limits, and LLM fallback layer. That shared layer is why the project feels like one product rather than two disconnected tools.
-
-**How to explain Agento in an interview (30 seconds):**  
-“Agento is a multi-tenant enterprise assistant. Admins upload company documents; we chunk and embed them. Employees ask questions in chat or voice; we retrieve the top similar chunks and generate an answer with citations. Separately, Query Genius lets users upload CSVs and ask analytical questions in English; the LLM writes Mongo aggregations, we execute them, and we chart the results. Auth is NextAuth for staff and tokenized public links for guests.”
+| **Notebook LLM** | Per-notebook persistent RAG chat with own document set |
+| **Human Writer** | Style-learning ghostwriter chatbot with persistent global writing profile |
+| **AI Research Summary** | 4-node multi-agent paper generator with 5 export formats and photon animation |
+| **AI Coding Assistant** | Browser-native local VS Code editor with Monaco + File System Access API |
 
 ---
 
 ## 2. Tech Stack
 
-The stack was chosen for **speed of building a full product**, not for maximum distributed-systems sophistication. Next.js App Router lets the same TypeScript project serve both UI and APIs. MongoDB stores users, documents, vectors, sessions, and dynamic Query Genius collections without forcing a rigid relational schema. Ollama keeps LLM/embeddings local during development; Groq and HuggingFace exist so production demos do not die when the laptop model is offline. Voice uses the browser Web Speech API so there is no custom audio streaming backend in the pilot.
-
-| Layer | Technology | Role |
+| Layer | Technology | Version |
 |---|---|---|
-| Framework | **Next.js 16** (App Router) | UI + API Route Handlers (BFF) |
-| UI | **React 19**, Tailwind 4, Radix/shadcn, Lucide, Framer Motion | Client-heavy dashboards |
-| Language | **TypeScript 5** | Type-safe app + APIs |
-| Auth | **NextAuth v4** (Credentials + JWT) | Login sessions (30 days) |
-| Database | **MongoDB** via **Mongoose 9** | Users, docs, vectors, sessions, links |
-| Admin DB | Separate Mongo DB `AgentoAdmin` | Subscription request queue |
-| Local LLM | **Ollama** (`/api/generate`) | Primary chat/completions |
-| Cloud LLM | **Groq** OpenAI-compatible API | Fallback if Ollama fails |
-| Local embeddings | Ollama **nomic-embed-text** (~768-d) | Primary embeddings |
-| Cloud embeddings | HuggingFace **all-MiniLM-L6-v2** (~384-d) | Fallback embeddings |
-| PDF | **unpdf** | Extract text from PDFs |
-| Charts | **Recharts** | Query Genius visualizations |
-| Diagrams | **Mermaid** (CDN in client) | Optional process flowcharts in chat |
-| Email | **Nodemailer** + Gmail SMTP | Verify, reset, subscription emails |
-| Voice | Browser **Web Speech API** | STT + TTS (no server audio pipeline) |
+| Framework | Next.js (App Router) | 16.1.1 |
+| UI | React | 19.2.3 |
+| Language | TypeScript | ^5 |
+| Styling | Tailwind CSS | ^4 |
+| Animation (CSS) | tw-animate-css | ^1.4.0 |
+| Animation (complex) | Framer Motion | ^12.25.0 |
+| Auth | NextAuth (Credentials + JWT) | ^4.24.13 |
+| Database | MongoDB via Mongoose | ^9.1.2 |
+| Local LLM | Ollama `/api/generate` | any model |
+| Cloud LLM | Groq `llama-3.3-70b-versatile` | via API |
+| Local Embeddings | Ollama `nomic-embed-text` (768-dim) | via API |
+| Cloud Embeddings | HuggingFace `all-MiniLM-L6-v2` (384-dim) | ^4.13.15 |
+| Code Editor | Monaco Editor `@monaco-editor/react` | ^4.7.0 |
+| File System | Browser File System Access API | native (Chrome/Edge 86+) |
+| Word Export | docx | ^9.7.1 |
+| Charts | Recharts | ^3.8.0 |
+| PDF Parsing | unpdf | ^1.4.0 |
+| Flowcharts | Mermaid.js | ^11.12.2 |
+| Icons | Lucide React | ^0.562.0 |
+| Email | Nodemailer + Gmail SMTP | ^7.0.12 |
+| UI Primitives | Radix UI (Label, Slot) | ^2.x |
+| Class utilities | clsx + tailwind-merge + class-variance-authority | latest |
+| Password hashing | bcryptjs | ^3.0.3 |
 
-**Not in production Next path:** OpenAI SDK, Gemini, Streamlit (`queryGenius/query.py` is a **legacy prototype** only). Knowing that distinction matters: if you open `queryGenius/query.py`, you are looking at history, not the live architecture.
+**Not used (important for interviews):** LangChain, LlamaIndex, OpenAI SDK, Stripe webhooks, WebRTC audio server, dedicated vector DB (Pinecone/Weaviate).
 
 ---
 
 ## 3. High-Level Architecture
 
-### How to read the architecture
-
-Think of Agento as three concentric layers. The **outer layer** is clients: logged-in browser apps, the admin UI, and guest iframes. The **middle layer** is Next.js: pages for interaction and `/api` route handlers for business logic. The **inner layer** is data and AI providers: MongoDB for state, Ollama/Groq for text generation, and Ollama/HuggingFace for embeddings.
-
-Requests always enter through the middle layer. Pages almost never talk to Ollama or Mongo directly from the browser for privileged work; they call APIs, and APIs enforce auth, tenancy, and rate limits before touching data or models. That is the BFF idea: the backend is shaped for this UI and this product, not offered as a generic public AI API.
-
-Guest mode is the same middle layer with a different front door. Instead of a NextAuth cookie, the client sends `x-guest-token`. The server resolves that token to a company and feature list, then reuses chat/RAG routes. Architecturally, guest is an identity adapter, not a second product.
-
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              CLIENTS                                        │
-│  Browser (employees)  │  Admin panel  │  Guest iframe (/guest/:token)       │
-│  Web Speech STT/TTS   │  Recharts     │  x-guest-token header               │
-└───────────────┬─────────────────────┬───────────────────┬───────────────────┘
-                │                     │                   │
-                ▼                     ▼                   ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                     NEXT.JS APP ROUTER (BFF)                                │
-│  Pages (CSR + useSession)     │     Route Handlers /api/*                   │
-│  /dashboard /chat-voice       │     Auth · Chat · Docs · QG · Guest         │
-│  /query-genius /admin /guest  │     JWT session OR guest token              │
-└───────────────┬─────────────────────┬───────────────────┬───────────────────┘
-                │                     │                   │
-     ┌──────────┴──────────┐   ┌──────┴──────┐   ┌───────┴────────┐
-     ▼                     ▼   ▼             ▼   ▼                ▼
-┌──────────┐        ┌────────────┐   ┌────────────┐      ┌──────────────┐
-│ MongoDB  │        │  Ollama    │   │   Groq     │      │ HuggingFace  │
-│ Agento   │        │ LLM+Embed  │   │ LLM fallback│      │ Embed fallback│
-│ + Admin  │        └────────────┘   └────────────┘      └──────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│                                   CLIENTS                                        │
+│  Browser (employees)  │  Admin panel  │  Guest iframe  │  Research Suite pages  │
+│  Web Speech STT/TTS   │  Recharts     │  x-guest-token │  Monaco + FS Access API │
+└──────────────────────────┬───────────────────────────────────────────────────────┘
+                           │
+                           ▼
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│                      NEXT.JS APP ROUTER  (BFF)                                   │
+│                                                                                  │
+│  Pages (CSR + useSession)          │   Route Handlers /api/*                     │
+│  /dashboard /chat-voice            │   Auth · Chat · Docs · QG                   │
+│  /query-genius /admin /guest       │   Research (notebook/human-writer/           │
+│  /research/notebook/[id]           │     ai-research/coding/sessions)             │
+│  /research/human-writer            │   JWT session OR guest token                 │
+│  /research/ai-research             │                                              │
+│  /research/coding                  │                                              │
+└──────────┬────────────────┬────────┴──────────────┬───────────────────────────────┘
+           │                │                        │
+  ┌────────┴──────┐ ┌───────┴────────┐    ┌──────────┴────────────┐
+  ▼               ▼ ▼                ▼    ▼                        ▼
+┌──────────┐ ┌─────────┐ ┌────────────┐ ┌────────────┐  ┌──────────────────────┐
+│ MongoDB  │ │ Ollama  │ │    Groq    │ │ HuggingFace│  │  Browser (FS Access) │
+│ Agento   │ │LLM+Embed│ │LLM fallback│ │Embed fallbk│  │  Local disk R/W      │
+│ + Admin  │ └─────────┘ └────────────┘ └────────────┘  └──────────────────────┘
 └──────────┘
-     │
-     ├── users, documents, vector_store, chat_sessions, public_links
-     ├── qg_{companyId}_*  (Query Genius data)
-     └── AgentoAdmin.subscription_requests
+  │
+  ├── users, documents, vector_store, chat_sessions, public_links
+  ├── notebook_sessions, hw_sessions, writing_profiles, research_sessions
+  ├── qg_{companyId}_*  (Query Genius data collections)
+  └── AgentoAdmin.subscription_requests
 ```
 
-### Architecture understanding points (study these, not only the box diagram)
+### Key architectural principles
 
-1. **Single deployable, two AI paths.** Chat/voice RAG and Query Genius both live in one Next app, but they solve different data shapes. Do not describe the whole product as “just RAG” or “just an agent.”
-
-2. **Tenancy is the spine.** Almost every serious query is scoped by `company_id`. For documents that is a metadata filter; for Query Genius it is baked into the collection name (`qg_{companyId}_...`). If tenancy breaks, the product is unsafe regardless of how good the LLM is.
-
-3. **APIs are the control plane.** Rate limits, auth checks, embedding calls, and Mongo writes happen in route handlers. The React pages are orchestration and UX.
-
-4. **LLM access is centralized.** Features should call `callLLM` / `getEmbedding` rather than inventing their own provider clients. That makes failover and model swaps a library concern.
-
-5. **Voice is a client modality.** The server still receives text. Speech-to-text and text-to-speech happen in the browser; `/api/chat` remains the intelligence endpoint.
-
-6. **Degradation is designed in.** If Ollama is down, Groq can answer. If embeddings fail, regex text search can still retrieve something. If AI LookUp is rate-limited, manual LookUp still works. Architecture resilience is intentional, not accidental.
-
-7. **Admin DB separation.** Subscription requests sit in `AgentoAdmin` so billing/ops workflow is not mixed into the main product database schema as tightly. Product tenants still live in `Agento`.
-
-### Connection map (who talks to whom)
-
-| From | To | How |
-|---|---|---|
-| Browser pages | `/api/*` | `fetch` + cookies (NextAuth) or `x-guest-token` |
-| `/api/chat` | Mongo `vector_store` | Load chunks → cosine similarity |
-| `/api/chat` | `lib/llm.ts` | `getEmbedding` + `callLLM` |
-| `/api/documents/upload` | `unpdf` + embeddings + Mongo | Ingest pipeline |
-| `/api/query-genius/*` | Raw Mongo + LLM | NL → aggregation / CRUD |
-| Auth routes | `User` + Nodemailer | Signup / verify / reset |
-| Admin public-link | `PublicLink` | Guest identity source |
-| Rate limit | `User` counters | Increment before expensive AI calls |
-
-**Reading tip:** every arrow above is a trust boundary. Browser → API needs auth. API → Mongo needs tenant filters. API → LLM needs prompt discipline and output parsing. If you can explain those three boundaries, you can defend the architecture in an interview.
+1. **Single deployable, multiple AI paths.** Chat/voice RAG, Query Genius NL→Mongo, Notebook RAG, Human Writer style-chat, Research paper generation, and Code editing all live in one Next.js app but use different methodologies.
+2. **Tenancy is the spine.** Every significant query is scoped by `company_id`. Break tenancy and the product is unsafe regardless of LLM quality.
+3. **APIs are the control plane.** Rate limits, auth, embedding calls, and Mongo writes happen in route handlers. React pages are orchestration and UX only.
+4. **LLM access is centralized.** All features call `callLLM()` / `getEmbedding()` from `lib/llm.ts`. Providers are swappable without touching feature code.
+5. **File System API = zero server copies.** The Coding Assistant never uploads code to the server. Files live on the user's local disk; the browser reads/writes via `FileSystemDirectoryHandle`. Only the AI chat payload (selected file content) crosses the network.
+6. **Degradation by design.** Ollama→Groq, vectors→regex, AI LookUp→manual LookUp — fallbacks are intentional, not accidental.
 
 ---
 
@@ -210,80 +169,121 @@ Guest mode is the same middle layer with a different front door. Instead of a Ne
 
 ```
 The-Agento/
-├── app/                          # Next.js App Router
+├── app/
 │   ├── api/
-│   │   ├── auth/                 # NextAuth, signup, email, admin, public-link, usage
-│   │   ├── chat/                 # RAG chat + session CRUD
-│   │   ├── documents/            # Upload + debug
-│   │   ├── guest/                # Token validate
-│   │   └── query-genius/         # Collections, schema, query, upload, analytics, lookup, data
-│   ├── admin/                    # Admin UI
-│   ├── chat-voice/               # Primary unified chat + voice
-│   ├── chat/ · voice-call/       # Legacy separate UIs
-│   ├── guest/[token]/           # Public guest experience
-│   ├── dashboard/ · ingest-doc/ · query-genius/ · pricing/
+│   │   ├── auth/                    # NextAuth, signup, email, admin, public-link, usage
+│   │   ├── chat/                    # RAG chat + session CRUD (+ guest support)
+│   │   ├── documents/               # Upload + embedding pipeline + debug
+│   │   ├── guest/                   # Token validate
+│   │   ├── query-genius/            # Collections, schema, query, upload, analytics, lookup
+│   │   └── research/
+│   │       ├── notebook/
+│   │       │   ├── chat/            # In-memory RAG chat for notebook sessions
+│   │       │   ├── upload/          # Document upload → embed → in-memory store
+│   │       │   └── sessions/        # NotebookSession CRUD (GET/POST/PATCH/DELETE)
+│   │       │       └── [id]/
+│   │       ├── human-writer/
+│   │       │   ├── profile/         # Global WritingProfile CRUD (persistent samples)
+│   │       │   ├── chat/            # Style-aware chatbot (reads profile from DB)
+│   │       │   ├── sessions/        # HumanWriterSession CRUD
+│   │       │   │   └── [id]/
+│   │       │   ├── upload/          # Legacy in-memory upload (not used by new page)
+│   │       │   ├── analyze/         # Legacy style analyzer
+│   │       │   └── generate/        # Legacy one-shot generator
+│   │       ├── ai-research/
+│   │       │   └── generate/        # Paper generation (5 formats)
+│   │       ├── coding/
+│   │       │   └── chat/            # Code chat (receives context in request body)
+│   │       └── sessions/            # ResearchSession CRUD (AI Research history)
+│   │           └── [id]/
+│   ├── admin/
+│   ├── chat-voice/                  # Primary unified chat + voice
+│   ├── chat/ · voice-call/          # Legacy separate UIs
+│   ├── guest/[token]/
+│   ├── dashboard/
+│   ├── ingest-doc/
+│   ├── query-genius/
+│   ├── pricing/
+│   ├── research/                    # Research Suite hub (feature cards)
+│   │   ├── notebook/                # NotebookLLM hub (all notebooks grid)
+│   │   │   └── [id]/                # Individual notebook chat page
+│   │   ├── human-writer/            # Human Writer chatbot page
+│   │   ├── ai-research/             # AI Research Summary + paper generator
+│   │   └── coding/                  # VS Code-style local code editor
 │   ├── login/ · signup/ · verify-email/ · forgot-password/ · reset-password/
-│   ├── layout.tsx · page.tsx · SessionProviderWrapper.tsx
-├── components/                   # UI + PricingModal
-├── lib/                          # db, llm, guestAuth, rateLimit, email, token, utils
-├── models/                       # Mongoose schemas
-├── queryGenius/query.py          # Legacy Streamlit prototype (NOT wired to Next)
-├── types/                        # next-auth + global mongoose cache
-├── public/                       # logo, assets
+│   ├── layout.tsx · page.tsx · globals.css · SessionProviderWrapper.tsx
+│
+├── components/
+│   ├── ui/                          # Button, Card, Input, Label (shadcn pattern)
+│   ├── PricingModal.tsx
+│   └── transition.tsx
+│
+├── lib/
+│   ├── db.ts                        # Mongoose singleton (connectDB + connectAdminDB)
+│   ├── llm.ts                       # callLLM() + getEmbedding() with fallback chains
+│   ├── rateLimit.ts                 # checkAndIncrementAILimit() + getAIUsage()
+│   ├── guestAuth.ts                 # resolveGuestToken() + incrementGuestCallCount()
+│   ├── email.ts                     # Nodemailer helpers
+│   ├── token.ts                     # Secure token generation
+│   └── utils.ts                     # cn() utility
+│
+├── models/
+│   ├── User.ts                      # role, company_id, aiCallCount, subscriptionPlan
+│   ├── ChatSession.ts               # chat/voice sessions + messages + citations
+│   ├── Document.ts                  # uploaded document metadata
+│   ├── VectorChunk.ts               # textContent + vectorContent + embeddingModel
+│   ├── PublicLink.ts                # guest token + features + guestCallCount
+│   ├── SubscriptionRequest.ts       # plan upgrade queue (AgentoAdmin DB)
+│   ├── NotebookSession.ts           # title, description, docs[], messages[]
+│   ├── WritingProfile.ts            # global samples[], styleAnalysis (per user)
+│   ├── HumanWriterSession.ts        # style-chat sessions + messages
+│   └── ResearchSession.ts           # AI research paper sessions (inputs + output)
+│
+├── types/                           # next-auth.d.ts + global mongoose cache
+├── public/                          # logo, assets
 ├── README.md
-└── ARCHITECTURE.md               # this file
+└── ARCHITECTURE.md                  # this file
 ```
 
 ---
 
 ## 5. Features & User Journeys
 
-Features in Agento are best understood as **user journeys**, not as isolated screens. A company starts by getting accounts and documents into the system; only then do chat, voice, and analytics become useful. The dashboard is the hub: it shows remaining AI usage and routes people into the right tool. `/chat-voice` is the primary conversational surface (text and speech). `/query-genius` is the structured-data surface. `/admin` and `/ingest-doc` are control-plane surfaces for company admins. `/guest/[token]` is the external, account-less surface.
-
-When you demo or explain a feature, always say what happens **before** the user clicks (who uploaded data, who is authenticated) and what happens **after** (which API, which store, which model). That narrative is stronger than listing menu items.
-
-### 5.1 Pages / routes
+### 5.1 Core Platform Pages
 
 | Route | Audience | Purpose |
 |---|---|---|
 | `/` | Public | Marketing landing |
 | `/login` · `/signup` | Public | Credentials auth |
-| `/verify-email` · `/forgot-password` · `/reset-password` | Public | Email lifecycle |
-| `/dashboard` | Logged-in | Hub + usage meters + feature links |
-| `/chat-voice` | Logged-in | **Primary** Chat ↔ Voice toggle (same RAG) |
-| `/chat` · `/voice-call` | Logged-in | Legacy dedicated UIs |
-| `/ingest-doc` | Admin | Upload & categorize documents |
-| `/query-genius` | Logged-in | Structured data NL + charts + analytics |
+| `/dashboard` | Logged-in | Hub + usage meters + feature cards |
+| `/chat-voice` | Logged-in | **Primary** Chat ↔ Voice toggle (shared RAG) |
+| `/ingest-doc` | Admin | Upload + categorize documents |
+| `/query-genius` | Logged-in | NL CRUD, analytics, LookUp charts |
 | `/admin` | Admin | Employees, subscriptions, public link |
 | `/pricing` | Logged-in | Plans + UPI upgrade request |
 | `/guest/[token]` | External | Chat/voice without account |
 
-### 5.2 Feature summary (with “why it exists”)
+### 5.2 Research Suite Pages
 
-1. **Unified Chat + Voice** — Users should not learn two products for the same knowledge base. One page toggles modality; voice uses shorter prompts because spoken answers must be brief.  
-2. **Document Ingestion** — Without curated company text in `vector_store`, chat is just a generic LLM. Ingest is the foundation of RAG quality.  
-3. **RAG Q&A** — Retrieves relevant passages before generating, so answers can cite real files instead of inventing policy.  
-4. **Mermaid flowcharts** — Process questions are easier to understand visually; a second LLM call turns steps into a diagram when keywords suggest a workflow.  
-5. **Query Genius** — Spreadsheet/CSV questions need exact aggregates, not semantic paragraph search. NL→Mongo is the right tool for that.  
-6. **LookUp** — Gives both power users (manual axes) and natural-language users (AI charts) a path to visualization.  
-7. **Analytics modes** — Frames the same engine with different business intents (what / why / what next / what to do).  
-8. **Guest link** — Lets companies embed assistance on their site without forcing account creation; feature flags keep scope controlled.  
-9. **Usage limits** — Protects free-tier cost and nudges upgrades without needing a full payment gateway in the pilot.
+| Route | Purpose |
+|---|---|
+| `/research` | Hub page — 4 feature cards |
+| `/research/notebook` | NotebookLLM hub — grid of all notebooks |
+| `/research/notebook/[id]` | Individual notebook chat with sources sidebar |
+| `/research/human-writer` | Style-learning ghostwriter chatbot |
+| `/research/ai-research` | AI Research Summary with paper generator + history |
+| `/research/coding` | VS Code-style local code editor (Monaco + FS API) |
 
 ---
 
 ## 6. Authentication & Authorization
 
-Security in Agento is mostly about **who you are** and **which company you belong to**. There is no fancy zero-trust mesh; there is careful identity gating. Staff users authenticate with email/password through NextAuth, receive a JWT session that carries `company_id` and `role`, and then every sensitive API reads that session. Employees have an extra gate: even after proving email ownership, an admin must mark the account verified before they are treated as fully trusted members of the company.
-
-Guests are intentionally different. They are not rows in `User`. Their proof of access is a `PublicLink` token. That design lets a company share chat/voice externally without opening signup, while still binding every guest request to one tenant and an explicit feature list.
-
 ### 6.1 Roles
 
 | Role | How created | Capabilities |
 |---|---|---|
-| **admin** | Signup with admin role | Docs ingest, employee verify, public link, subscription admin APIs |
-| **employee** | Signup under company | Chat/voice/query after **email verify** + **admin account verify** |
+| **admin** | Signup with admin role | Docs ingest, employee verify, public link, subscription admin |
+| **employee** | Signup under company | Chat/voice/query/research after email verify + admin approve |
 | **guest** | Not a User row | Synthetic identity via `PublicLink` token; scoped to company + features |
 
 ### 6.2 Login gate flow
@@ -291,95 +291,115 @@ Guests are intentionally different. They are not rows in `User`. Their proof of 
 ```
 Signup
   → bcrypt hash password
-  → admins: accountVerified = true
+  → admins: accountVerified = true immediately
   → employees: accountVerified = false (pending admin)
-  → email verification token (SHA-256 stored, ~24h)
+  → verification token sent via email (~24h expiry)
   → Login blocked until emailVerified
-  → Employees also need accountVerified
-  → NextAuth Credentials → JWT (id, company_id, company_name, role, accountVerified)
+  → employees also blocked until accountVerified by admin
+  → NextAuth Credentials → JWT (id, company_id, company_name, role, subscriptionPlan)
 ```
 
 ### 6.3 Guest identity
 
 ```
-Admin creates PublicLink (token, features[], enabled)
+Admin creates PublicLink (token, features["chat","voice"], enabled)
 Guest opens /guest/{token}
   → GET /api/guest/validate
   → Client stores company + features
-API calls send header: x-guest-token: <token>
-Server: resolveGuestToken() → { company_id, features, email: guest@{token} }
+API calls include header: x-guest-token: <token>
+Server: resolveGuestToken() → { company_id, features, email: "guest@{token}", role: "guest" }
 ```
+
+Guest requests reuse the same `/api/chat` endpoint. The identity adapter (`resolveGuestToken`) returns a `GuestIdentity` that satisfies the same interface as `session.user` — no special branches in the chat logic.
 
 ---
 
 ## 7. Data Models
 
-### `User`
-- Identity: `name`, `email`, `password`
+### `User` (`users`)
+- Identity: `name`, `email`, `password` (bcrypt)
 - Tenant: `role`, `company_id`, `company_name`
-- Verification: `emailVerified`, tokens/expiry; `accountVerified`, `verifiedBy`
+- Verification: `emailVerified`, `emailVerifyToken/Expiry`, `accountVerified`, `verifiedBy`
 - Usage: `chatCallCount`, `voiceCallCount`, `queryCallCount`
-- Subscription: `subscription`, `subscriptionPlan`, `subscriptionExpiry`
+- Subscription: `subscription` (bool), `subscriptionPlan`, `subscriptionExpiry`
 
 ### `Document` (`documents`)
-- `company_id`, `filename`, `category`, `uploaded_by`, `upload_date`, optional `full_text`
+- `company_id`, `filename`, `category`, `uploaded_by`, `upload_date`, `file_url`, optional `full_text`
 
 ### `VectorChunk` (`vector_store`)
-- `metadata.{company_id, category, filename, uploaded_by}`
-- `textContent`, `vectorContent: number[]`, `embeddingModel` (isolates 768-d vs 384-d)
+- `metadata.{ company_id, category, filename, uploaded_by }`
+- `textContent: string`, `vectorContent: number[]`, `embeddingModel: string`
+- The `embeddingModel` field prevents mixing 768-dim Ollama vectors with 384-dim HuggingFace vectors at query time
 
 ### `ChatSession` (`chat_sessions`)
-- `company_id`, `user_email`, `title`, `mode` (`chat` | `voice`)
-- `messages[]`: role, content, optional mermaid + citations
+- `company_id`, `user_email`, `title`, `mode: "chat" | "voice"`
+- `messages[]: { role, content, mermaidCode?, citations? }`
 
 ### `PublicLink` (`public_links`)
 - `token`, `company_id`, `company_name`, `enabled`, `features[]`, `guestCallCount`, `expiresAt?`
 
-### `SubscriptionRequest` (Admin DB)
-- User/company/plan/status timestamps; approved by super-admin email flow
+### `NotebookSession` (`notebook_sessions`)
+- `company_id`, `user_email`, `title`, `description`
+- `docs[]: { docId, filename, chunks, size }` — doc references (embeddings live in in-memory store)
+- `messages[]: { role, content, citations[] }`
 
-### Query Genius collections (raw Mongo, not Mongoose models)
-- Data: `qg_{company_id}_{collectionName}`
-- Meta/schema: `qg_meta_{company_id}`
+### `WritingProfile` (`writing_profiles`)
+- `company_id`, `user_email` (unique — one global profile per user)
+- `samples[]: { sampleId, filename, content, words, uploadedAt }` — stored permanently in DB
+- `styleAnalysis: string` — cached LLM-generated style description
+- `analysedAt: Date | null`
+
+### `HumanWriterSession` (`hw_sessions`)
+- `company_id`, `user_email`, `title`
+- `messages[]: { role, content, createdAt }`
+
+### `ResearchSession` (`research_sessions`)
+- `company_id`, `user_email`, `title` (auto-set from first 60 chars of idea)
+- `inputs: { idea, prior, approach, result }`
+- `output: string` — the full generated paper
+
+### `SubscriptionRequest` (AgentoAdmin DB)
+- User/company/plan/status/timestamps; approved by super-admin via email
+
+### Query Genius (raw Mongo, not Mongoose models)
+- Data collections: `qg_{company_id}_{collectionName}`
+- Schema/meta: `qg_meta_{company_id}`
 
 ---
 
 ## 8. API Catalog
 
-### Auth & identity
+### Auth & Identity
 
 | Endpoint | Methods | Auth | Purpose |
 |---|---|---|---|
-| `/api/auth/[...nextauth]` | GET/POST | Public | Login / session |
-| `/api/auth/signup` | POST | Public | Register + verification email |
-| `/api/auth/verify-email` | POST | Public | Confirm email |
-| `/api/auth/forgot-password` | POST | Public | Reset email |
+| `/api/auth/[...nextauth]` | GET/POST | Public | NextAuth login/session |
+| `/api/auth/signup` | POST | Public | Register + send verify email |
+| `/api/auth/verify-email` | POST | Public | Confirm email token |
+| `/api/auth/forgot-password` | POST | Public | Send reset email |
 | `/api/auth/reset-password` | POST | Public | Set new password |
-| `/api/auth/change-password` | POST | Session | Change password |
-| `/api/auth/companies` | GET | Public | Company list for signup |
-| `/api/auth/usage` | GET | Session | Feature used/limit |
+| `/api/auth/change-password` | POST | Session | Change own password |
+| `/api/auth/companies` | GET | Public | Company list for signup dropdown |
+| `/api/auth/usage` | GET | Session | Per-feature used/limit |
 | `/api/auth/public-link` | GET/POST/PATCH/DELETE | Admin | Guest link lifecycle |
 | `/api/auth/admin/employees` | GET/PATCH | Admin | Approve/reject employees |
-| `/api/auth/subscription/request` | POST | Session | Request paid plan |
-| `/api/auth/admin/subscription-requests` | GET/PATCH/DELETE | Admin | Approve/reject plans |
-| `/api/guest/validate` | GET | Public | Validate guest token |
+| `/api/auth/subscription/request` | POST | Session | Request paid plan upgrade |
+| `/api/auth/admin/subscription-requests` | GET/PATCH/DELETE | Admin | Manage plan requests |
+| `/api/guest/validate` | GET | Public | Validate + return guest capabilities |
 
 ### Chat / RAG
 
 | Endpoint | Methods | Auth | Purpose |
 |---|---|---|---|
-| `/api/chat` | POST | Session **or** guest | RAG answer (+ mermaid, citations) |
+| `/api/chat` | POST | Session **or** guest | RAG answer (+ optional mermaid, citations) |
 | `/api/chat/sessions` | GET/POST | Session or guest | List / create sessions |
-| `/api/chat/sessions/[id]` | GET/PATCH/DELETE | Session or guest | Load / append / delete |
-
-**Chat body:** `{ message, history?, mode?: "chat" | "voice" }`  
-**Chat response:** `{ message, mermaidCode?, citations? }`
+| `/api/chat/sessions/[id]` | GET/PATCH/DELETE | Session or guest | Load / append messages / delete |
 
 ### Documents
 
 | Endpoint | Methods | Auth | Purpose |
 |---|---|---|---|
-| `/api/documents/upload` | GET/POST | Admin | List docs / upload+ingest |
+| `/api/documents/upload` | GET/POST | Admin | List docs / upload + ingest pipeline |
 | `/api/documents/debug` | GET | Session | Chunk/doc counts |
 
 ### Query Genius
@@ -389,983 +409,714 @@ Server: resolveGuestToken() → { company_id, features, email: guest@{token} }
 | `/api/query-genius/collections` | GET | Session | List company collections |
 | `/api/query-genius/schema` | GET | Session | Infer/view schema |
 | `/api/query-genius/data` | GET/DELETE | Session | Preview / drop collection |
-| `/api/query-genius/upload` | POST | Session | CSV upload + schema |
-| `/api/query-genius/query` | POST | Session | read/insert/update/delete |
-| `/api/query-genius/analytics` | POST | Session | 4 analytics modes |
-| `/api/query-genius/lookup` | POST | Session | Manual or AI charts |
+| `/api/query-genius/upload` | POST | Session | CSV upload with schema |
+| `/api/query-genius/query` | POST | Session | NL read/insert/update/delete |
+| `/api/query-genius/analytics` | POST | Session | 4-mode analytics pipeline |
+| `/api/query-genius/lookup` | POST | Session | Manual or AI chart generation |
+
+### Research Suite
+
+| Endpoint | Methods | Auth | Purpose |
+|---|---|---|---|
+| `/api/research/notebook/upload` | POST/DELETE | Session | Upload doc → extract → embed → in-memory store |
+| `/api/research/notebook/chat` | POST | Session | RAG chat over in-memory session docs |
+| `/api/research/notebook/sessions` | GET/POST | Session | List / create notebook sessions |
+| `/api/research/notebook/sessions/[id]` | GET/PATCH/DELETE | Session | Load / update docs+messages / delete |
+| `/api/research/human-writer/profile` | GET/POST/DELETE | Session | Read / upload / delete writing samples (persistent DB) |
+| `/api/research/human-writer/chat` | POST | Session | Style-aware chat (reads WritingProfile from DB) |
+| `/api/research/human-writer/sessions` | GET/POST | Session | List / create HW chat sessions |
+| `/api/research/human-writer/sessions/[id]` | GET/PATCH/DELETE | Session | Load / append / delete |
+| `/api/research/ai-research/generate` | POST | Session | Generate paper in any of 5 formats |
+| `/api/research/coding/chat` | POST | Session | Code chat (context sent in request body) |
+| `/api/research/sessions` | GET/POST | Session | List / save ResearchSession (AI Research history) |
+| `/api/research/sessions/[id]` | GET/DELETE | Session | Load / delete a research session |
 
 ---
 
 ## 9. RAG Pipeline (Documents → Chat/Voice)
 
-RAG is Agento’s answer to the question: *“How do we make the model talk about our documents without fine-tuning a new model per company?”* The approach is: store company text as searchable chunks, retrieve the best chunks for each question, and only then ask the LLM to write an answer using that context. The model remains general; the **retrieval layer** supplies company-specific knowledge.
-
-There are two phases. **Ingest** happens when an admin uploads a file (offline relative to the chat turn). **Retrieve + generate** happens on every user question (online). Quality depends on both: bad cleaning/chunking at ingest cannot be fixed by a clever prompt later, and good chunks still fail if retrieval thresholds or tenancy filters are wrong.
-
 ### 9.1 Ingest (offline / admin)
 
 ```
-File upload (admin)
-  → PDF: unpdf extract | TXT/MD/CSV/JSON: text
-  → cleanText (noise filtering)
-  → chunkText (~1000 chars, overlap)
-  → for each chunk: getEmbedding(text)
-  → save VectorChunk + Document metadata (company_id, category, filename)
+File upload (admin) → extract text
+  PDF: unpdf (getDocumentProxy + extractText)
+  TXT/MD/CSV/JSON: file.text()
+  → cleanText() — line quality filter (length ≥10, alphanumeric ratio ≥40%, ≥2 real words)
+  → chunkText() — ~1000 chars per chunk, ~200 char overlap (carry last floor(overlap/5) words)
+  → for each chunk: getEmbedding(text) → { embedding, model }
+  → VectorChunk.insertMany({ metadata.company_id, textContent, vectorContent, embeddingModel })
+  → Document metadata saved separately
 ```
 
-In plain language: extract readable text, throw away junk lines from PDFs, split into overlapping windows of about **1000 characters**, embed each window, and store vectors with metadata so later search can stay inside one company and cite the source file. Categories (HR, Engineering, Sales, Marketing, Finance, Legal, Operations, General) are assigned at upload time and mainly help humans organize and cite content.
+**Categories (manual at upload):** HR, Engineering, Sales, Marketing, Finance, Legal, Operations, General — used for citation display, not retrieval filtering.
 
-### 9.2 Retrieve + generate (online)
+### 9.2 Retrieve + Generate (online, per question)
 
 ```
 User question
-  → Auth: session company_id OR guest company_id
-  → Rate limit check (chat or voice)
-  → Load up to ~100 company VectorChunks
-  → Embed query (same embeddingModel filter)
-  → Cosine similarity; keep score > 0.2; top K = 5
-  → Fallback: regex / text search on textContent if vectors weak
-  → Build prompt = system + retrieved context + last ~6 history turns
-  → callLLM(...)
-  → Optional Mermaid generation
-  → Return answer + citations {filename, category}
-  → Client may PATCH session to persist messages
+  → Auth: session.user.company_id OR resolveGuestToken() → company_id
+  → checkAndIncrementAILimit(email, "chat" | "voice")
+  → Load ≤100 VectorChunks for company_id
+  → getEmbedding(query) → { queryEmbedding, queryModel }
+  → Filter: embeddingModel === queryModel  (dimension isolation)
+  → cosine similarity all chunks → filter score > 0.2 → sort → Top-K = 5
+  → If no results: $regex fallback on textContent (limit 10)
+  → Build context: top chunks joined with \n\n---\n\n
+  → Build prompt: system + context + last 6 history turns + user message
+  → callLLM(prompt)
+  → Optional: if needsFlowchart(query) → second callLLM() → Mermaid code
+  → Return { message, mermaidCode?, citations[] }
 ```
 
-**Top-K and related limits (exact code behavior):** after cosine scoring, Agento keeps chunks with `score > 0.2`, sorts by score descending, and takes **Top-K = 5**. Before scoring it loads at most **100** chunks for that company. If vector retrieval returns nothing useful, a case-insensitive regex search on `textContent` can return up to **10** chunks as fallback. These numbers are heuristics for the pilot: small enough for in-memory scoring in Node, large enough for short policy answers.
+### 9.3 Chat vs Voice prompts
 
-Understanding tip: Top-K does not mean “always five chunks in the prompt.” It means “at most five after the score filter.” If only two chunks beat 0.2, the prompt only gets two.
-
-### 9.3 Chat vs voice prompts
-
-| Aspect | Chat | Voice |
+| Aspect | Chat mode | Voice mode |
 |---|---|---|
-| Style | Detailed, structured | Short (2–3 sentences), spoken language |
-| Post-process | Full text + optional Mermaid | Truncate long answers for TTS |
-| Rate feature key | `chat` | `voice` |
+| System prompt | Company-named, detailed, encourage numbered steps | "Agento", max 2–3 sentences, simple language |
+| Post-process | Full answer returned | Truncate >500 chars at sentence boundary |
+| Rate key | `chat` | `voice` |
 
-The retrieval path is the same; only the **generation contract** changes. Voice must be hearable in a few seconds of speech, so the system prompt asks for brevity and the API may truncate long replies at a sentence boundary (around 500 characters).
+### 9.4 Chunking algorithm
 
-### 9.4 What this RAG is (and is not)
+```
+Words of cleaned text → accumulate until (current + word).length > 1000
+→ push chunk
+→ carry last floor(200/5) = 40 words as overlap into next chunk
+→ push final remainder
+```
 
-| Is | Is not |
+Fixed-size word-window with overlap. Heuristic, fast, and good enough for policy/HR documents.
+
+### 9.5 RAG pattern summary
+
+| Stage | Method |
 |---|---|
-| Classic **retrieve-then-generate** | LangChain/LlamaIndex agent framework |
-| App-side **cosine** over Mongo arrays | MongoDB Atlas Vector Search / Pinecone |
-| Multi-tenant by `company_id` | Cross-company retrieval |
-| Embedding-model aware | Mixed-dimension search in one query |
-
-For interviews: call it **application-side vector RAG with hybrid lexical fallback**, not “we built a vector database.” The storage is Mongo arrays; the similarity engine is JavaScript cosine over a capped candidate set.
+| Extract | unpdf / file.text() |
+| Clean | Line quality heuristics |
+| Chunk | ~1000 chars + overlap |
+| Embed | Ollama → HuggingFace |
+| Store | MongoDB `vector_store` |
+| Retrieve | Cosine Top-5, score > 0.2 |
+| Fallback | $regex on textContent |
+| Generate | callLLM() |
+| Cite | { filename, category } deduplicated |
+| Diagram | Keyword detection → optional Mermaid LLM call |
 
 ---
 
 ## 10. Query Genius (NL → MongoDB)
 
-Query Genius exists because RAG is the wrong tool for questions like “What was total revenue last quarter by region?” Those answers live in rows and columns, not in paragraph embeddings. The methodology flips: instead of retrieving text for the LLM to paraphrase, Agento asks the LLM to **propose a MongoDB aggregation or filter**, then the server **executes** that proposal against real company collections and returns factual results (plus optional charts and narrative insight).
+Query Genius is **not RAG**. It is **NL → MongoDB execution** over company tabular data.
 
-**Live path = Next.js APIs only.** The Streamlit file `queryGenius/query.py` is historical. When you explain QG architecture, stick to `/api/query-genius/*`.
+**Live path = Next.js APIs only.** The legacy `queryGenius/query.py` is a historical Streamlit prototype, not wired.
 
-Collections are namespaced as `qg_{company_id}_{name}` so even a buggy pipeline cannot easily wander into another tenant’s table name. Schema is largely **inferred** from sample documents (types, nullability, uniqueness, enums, autoincrement-like ids), which lets the UI validate inserts and gives the LLM field hints without forcing users to write formal schemas first.
+Collections are namespaced `qg_{company_id}_{name}` — even a buggy LLM pipeline cannot accidentally access another tenant's collection by name.
 
-| Operation | Mechanism |
-|---|---|
-| Upload CSV | Validate against schema; replace or append; store meta |
-| Schema infer | Sample docs → types, nullable, unique, enums |
-| Read | LLM → aggregation pipeline JSON → execute |
-| Insert | Form + schema validation (often **no** LLM) |
-| Update / Delete | LLM → filter (+ `$set`) → guarded `updateMany` / `deleteMany` |
-| LookUp manual | Client chooses X/Y/agg → pipeline → Recharts |
-| LookUp AI | LLM returns PIPELINE + CHART_TYPE |
-| Analytics | descriptive / diagnostic / predictive / prescriptive → pipeline + insight + chart |
+### Operations
 
-**Understanding point:** Insert is deliberately less “AI magic” and more form validation — writes need stronger guarantees than reads. Analytics and AI LookUp use a strict text contract (`PIPELINE` / `CHART_TYPE` / `INSIGHT`) so the server can parse model output defensively. Predictive/prescriptive modes in the Next app are **LLM-framed analytics**, not separately trained forecasting models.
+| Operation | AI involved? | Pattern |
+|---|---|---|
+| Upload CSV | No (schema UI) | Validate + ingest with schema builder |
+| Read | Yes | LLM → aggregation pipeline JSON → aggregate() |
+| Insert | No (usually) | Form + schema validation (no LLM cost) |
+| Update | Yes | LLM → filter + $set → guarded updateMany |
+| Delete | Yes | LLM → filter → guarded deleteMany |
+| LookUp manual | No | Client axes + agg type → server builds pipeline |
+| LookUp AI | Yes | LLM returns PIPELINE + CHART_TYPE |
+| Analytics | Yes (heavy) | LLM → PIPELINE + CHART_TYPE + INSIGHT → execute → chart |
+
+### Schema Inference
+
+Sample up to 500 documents, detect per field: type, nullable, unique, isAutoIncrement, isPrimaryKey, min/max, enumValues (≤15 distinct strings). Fed into LLM prompts to generate safer queries and into UI for insert validation.
+
+### Analytics intent taxonomy (4D)
+
+| Type | Business framing | Prompt role |
+|---|---|---|
+| Descriptive | What happened? | Counts, averages, distributions |
+| Diagnostic | Why did it happen? | Correlations, segments, root causes |
+| Predictive | What might happen? | Trend-oriented aggregation narrative |
+| Prescriptive | What should we do? | Actionable recommendations |
 
 ---
 
 ## 11. Voice Mode Architecture
 
-Voice mode is easy to misunderstand. Agento does **not** stream raw audio to a custom speech server in the pilot. The browser converts speech to text (STT), the server runs the same RAG chat API on that text, and the browser reads the answer aloud (TTS). Architecturally, voice is a UX shell around `/api/chat` with `mode: "voice"`.
-
-The hard part is not “calling an API” — it is **conversation control**: when to start listening, when to stop, how to detect end of utterance (silence timer), and how to prevent the assistant’s own voice from being transcribed as the next user message. That last issue is why recognition is muted while TTS plays (half-duplex). Refs are used in event handlers so restart logic does not read stale React state and accidentally leave the mic dead or always on.
+Voice is a **thin client modality** over `/api/chat`. The server receives text. No audio streaming server.
 
 ```
 [Start Call]
-  → ensureMicPermission (getUserMedia audio, then stop tracks)
+  → ensureMicPermission (getUserMedia audio, stop tracks)
   → SpeechRecognition.start() (continuous, interimResults)
-  → UI: Listening / Mic On (only after onstart)
 
 [User speaks]
-  → onresult interim/final transcript
-  → silence timer (~1.5s) → submit
+  → onresult → interim transcript displayed
+  → ~1.5s silence timer → submit text to /api/chat { mode: "voice" }
 
-[Submit]
-  → stop recognition (mute input)
-  → POST /api/chat { mode: "voice", message, history }
-  → set Speaking
+[While processing]
+  → recognition stopped (prevent echo / system audio feedback — half-duplex)
+
+[Response]
   → speechSynthesis.speak(answer)
   → onend → restart recognition if still in call
 
-[While AI speaks]
-  → recognition stopped (prevents echo / system-audio feedback)
-
-[Errors]
-  → ignore "aborted" (expected on stop)
-  → not-allowed → end call
-  → other → show Mic error
+[Error handling]
+  → "aborted" errors ignored (expected on stop)
+  → not-allowed → end call gracefully
 ```
 
-**Browsers:** Chrome/Edge work best. Needs HTTPS (or localhost). Guest iframes need `allow="microphone"`. If voice “shows Listening but never responds,” check permission, secure origin, and whether `onstart` / `onresult` actually fire — the UI can only reflect what the browser speech engine reports.
+**Critical UX pattern:** recognition is muted while TTS plays. If you don't do this, the assistant hears itself and the call loops.
 
 ---
 
 ## 12. Guest / Public Link Architecture
 
-Guest mode is Agento’s embeddable distribution channel. A company admin generates a public link, chooses whether chat and/or voice are exposed, and can disable or regenerate the token later. External sites embed `/guest/{token}` in an iframe with microphone permission if voice is enabled.
-
-From an architecture view, the important idea is reuse: guests do not get a separate RAG stack. After token validation, they call the same chat APIs with `x-guest-token`. Sessions are stored under a synthetic email like `guest@{token}` so history can still be grouped without creating full user accounts. Usage is tracked on the link (`guestCallCount`) so admins can see how heavily the public surface is used.
-
 ```
 Admin Panel
-  → POST /api/auth/public-link  (create token)
+  → POST /api/auth/public-link → create token (SHA-256 random, stored in PublicLink)
   → PATCH features: ["chat","voice"]
-  → Copy URL / embed iframe
+  → Copy URL / embed iframe snippet
 
 External site iframe
   → src=/guest/{token} allow="microphone"
-  → Guest UI validates token
+  → Guest page validates token → stores company + features in state
   → Feature-gated Chat / Voice tabs
-  → APIs use x-guest-token
-  → Sessions stored under user_email guest@{token}
+  → API calls use header: x-guest-token: <token>
+  → Sessions stored under user_email "guest@{token}"
   → guestCallCount incremented on AI use
 ```
 
+Guests reuse the same RAG chat APIs. `resolveGuestToken()` returns a `GuestIdentity` object compatible with the `session.user` shape used in API handlers — zero special branches in chat/RAG logic.
+
 ---
 
-## 13. LLM & Embedding Fallback Chain
+## 13. Research Suite Architecture
 
-Implemented in `lib/llm.ts`:
+The Research Suite is a separate product surface under `/research` accessible from the dashboard. It does not share rate limits with the core features but shares the LLM/embedding infrastructure.
 
-### Completions — `callLLM`
+### 13.1 Notebook LLM
+
+**Architecture:**
+```
+Hub page (/research/notebook)
+  → NotebookSession list from /api/research/notebook/sessions
+  → Create new → POST → redirect to /research/notebook/[id]
+
+Notebook chat page (/research/notebook/[id])
+  → Load NotebookSession (title, docs[], messages[]) from DB
+  → Sources sidebar: upload file → POST /api/research/notebook/upload
+      → extract text (unpdf for PDF, file.text() for TXT/MD)
+      → chunk + embed (same getEmbedding() pipeline)
+      → store in global.__notebook_sessions__ Map<sessionId, DocEntry[]>
+      → PATCH NotebookSession.docs with { docId, filename, chunks, size }
+  → Chat: POST /api/research/notebook/chat { message, history, sessionId: notebookId }
+      → getNotebookStore().get(notebookId) → in-memory doc chunks
+      → getEmbedding(query) → cosine similarity → Top-6 chunks
+      → callLLM(context + history + question)
+      → return { message, citations[] }
+  → PATCH session to persist message pair
+```
+
+**In-memory store design decision:** Notebook doc embeddings are stored in `global.__notebook_sessions__` (a server-side Map). This avoids a separate `NotebookVectorChunk` collection and keeps retrieval fast. Trade-off: embeddings are lost on server restart; users must re-upload. Doc references (names, sizes) are persisted in `NotebookSession.docs[]` so the UI shows them correctly after reload.
+
+**Data flow distinction from Core RAG:**
+
+| Aspect | Core RAG (AI Chat) | Notebook LLM |
+|---|---|---|
+| Doc scope | `company_id` (all company docs) | `sessionId` (notebook-specific docs) |
+| Vector storage | MongoDB `vector_store` | In-memory Map on server |
+| Persistence | Permanent until admin deletes | Cleared on server restart |
+| Session title | Auto from first message | User-defined at creation |
+
+### 13.2 Human Writer
+
+**Architecture:**
+```
+Single page (/research/human-writer)
+  Sidebar section 1 — Writing Style
+    → GET /api/research/human-writer/profile
+    → Upload .txt/.md → POST /api/research/human-writer/profile
+        → Save to WritingProfile.samples[] in MongoDB (permanent, cross-session)
+        → Trigger background refreshAnalysis() → callLLM(style analysis prompt)
+        → Cache in WritingProfile.styleAnalysis
+    → Delete sample → DELETE /api/research/human-writer/profile?sampleId=...
+        → Remove from WritingProfile.samples[]
+        → Trigger background refreshAnalysis()
+
+  Sidebar section 2 — Chat History
+    → GET /api/research/human-writer/sessions
+    → Load session → GET /api/research/human-writer/sessions/[id]
+    → Delete session → DELETE
+
+  Chat area
+    → POST /api/research/human-writer/chat { message, history }
+        → Load WritingProfile from DB (no sessionId needed — global per user)
+        → Build context: styleAnalysis + sample content (up to 4000 chars)
+        → callLLM(style context + conversation history + user message)
+        → Respond in user's exact voice
+    → PATCH HumanWriterSession to persist message pair
+```
+
+**Key design decision — Global Writing Profile:**
+Writing samples are stored in `WritingProfile` (one document per user email, unique index) rather than per-session. This means:
+- Upload samples once → they work across all chat sessions forever
+- Style analysis is cached and auto-refreshed on sample changes
+- No re-upload required per session
+
+This is fundamentally different from Notebook LLM where each notebook has its own isolated document set.
+
+### 13.3 AI Research Summary
+
+**Architecture:**
+```
+Page (/research/ai-research)
+  Left column — Step Wizard (vertical accordion)
+    → 4 input sections: idea, prior, approach, result
+    → Each section: textarea + optional PDF/TXT upload
+        → import("unpdf") for PDFs → extract text → append to textarea
+    → "Next →" button advances accordion
+
+  Center — Photon Particle Animation (Canvas, client-side)
+    → ResearchOrb component: requestAnimationFrame loop
+    → On generate: animate nodes sequentially (1.5s delay each)
+    → Each active node fires photon particles toward center (cosine trajectory)
+    → Center orb: indigo (idle) → gold (all nodes complete) → green (synthesis done)
+    → Outgoing photons fire during synthesis phase
+
+  Right column — Live Paper Preview
+    → On generate:
+        → Animate all 4 nodes as "active"
+        → POST /api/research/ai-research/generate { idea, prior, approach, result, format }
+            → callLLM(format-specific prompt, 120000ms timeout)
+            → Returns structured paper text
+        → Render output: PaperPreview component
+            → Custom markdown→JSX renderer (Georgia serif font)
+            → Handles H1/H2/H3, bold, italic, HR, bullets, lists, code
+        → Save to ResearchSession via POST /api/research/sessions
+
+  History sidebar (collapsible)
+    → GET /api/research/sessions → list of past papers
+    → Click to reload: restore inputs[] + output
+    → Delete: DELETE /api/research/sessions/[id]
+
+  Export button (dropdown, appears after generation)
+    → "Word Document (.docx)": downloadAsDocx()
+        → import("docx") — client-side only
+        → Build Document tree: Heading1/2/3, Paragraph, TextRun (bold/italic), bullet
+        → Packer.toBlob() → browser download
+    → Other formats: re-call /api/research/ai-research/generate with new format
+        → downloadAsText() as .txt
+```
+
+**5 output formats:**
+
+| Format | Prompt instructions |
+|---|---|
+| standard | APA headings, paragraphs, 1-inch margins — Word format |
+| ieee | IEEE LaTeX structure, numbered sections, two-column style |
+| springer | LNCS One-Pager, <800 words, dense structure |
+| acm | ACM SIG Proceedings, uppercase sections |
+| abstract | 500-word extended abstract with labeled sections |
+
+**Word export uses `docx` library (not HTML-in-Word hack):** `Document → Packer.toBlob()` creates a real `.docx` binary. Opens in Microsoft Word without errors or recovery dialogs.
+
+### 13.4 AI Coding Assistant
+
+**Architecture (fundamentally different from all other tools):**
+```
+Page (/research/coding)
+  No uploads to server. No server-side file store.
+
+  File System Access API flow:
+    → window.showDirectoryPicker({ mode: "readwrite" })
+    → Returns FileSystemDirectoryHandle (permission to read/write real local disk)
+    → readDir(handle, "") → recursive tree (skip node_modules/.git/.next/dist)
+    → Tree rendered as accordion (lazy-load children on expand)
+
+  File editing:
+    → Click file → fileHandle.getFile() → file.text() → load into Monaco Editor
+    → Tab opened in tab bar
+    → Edit in Monaco → content in React state (openTabs[])
+    → Ctrl+S / Cmd+S → fileHandle.createWritable() → write → close
+      → saved directly to user's local disk, zero server involvement
+
+  AI Chat Panel:
+    → User asks question in chat panel
+    → Build context from React state:
+        activeFile: { path, content } (full content of current open file)
+        contextFiles: other open tabs (truncated, up to 4 files)
+        folderSummary: emoji tree from in-memory tree state
+    → POST /api/research/coding/chat { message, history, activeFile, contextFiles, folderSummary }
+        → No server-side store lookup (key difference from old architecture)
+        → Build prompt sections from request body
+        → callLLM(prompt, 120000)
+        → Return concise response (≤6 sentences unless showing code)
+    → ChatContent renderer: handles code blocks with copy buttons, inline bold/italic
+
+  Layout:
+    Activity Bar (48px) → Explorer / Search / Git / AI icons
+    File Explorer (256px) → recursive tree, colored file icons, lazy expand
+    Monaco Editor (flex-1) → tab bar + breadcrumbs + editor surface + minimap
+    AI Chat Panel (320px) → context bar + messages + input
+    Status Bar (22px fixed bottom) → folder name, save state, language, Ln/Col
+```
+
+**Why File System Access API instead of `<input webkitdirectory>`:**
+
+| `<input webkitdirectory>` (old approach) | File System Access API (new approach) |
+|---|---|
+| Copies files to browser memory → server upload | Reads from/writes to actual disk files |
+| Server needs a store (`__coding_sessions__`) | No server store — file context sent in request |
+| Files become stale (can't read changes) | Always reads live disk content |
+| Large codebases hit memory/upload limits | Only sends selected file content in chat payload |
+| Read-only from user's perspective | True read + write (Ctrl+S saves to disk) |
+
+**Key architectural rule:** The `__coding_sessions__` global store in the old upload API is now unused. The new chat route receives all file context in the request body (`activeFile`, `contextFiles`). The server is stateless for coding sessions.
+
+**Monaco Editor integration:**
+- Loaded client-side only via `dynamic(() => import("@monaco-editor/react"), { ssr: false })`
+- Language auto-detected from file extension via `EXT_LANG` map (20+ languages)
+- File icon colors via `EXT_COLOR` map per extension
+- `onMount(editor)` callback tracks cursor position for status bar
+- Options: JetBrains Mono font, font ligatures, minimap, bracket pair colorization, indent guides
+
+---
+
+## 14. LLM & Embedding Fallback Chain
+
+Implemented in `lib/llm.ts`.
+
+### Completions — `callLLM(prompt, timeoutMs = 60000)`
+
 ```
 1) Ollama  POST {OLLAMA_URL}/api/generate
+           model: OLLAMA_MODEL, temperature: 0.1, top_p: 0.9
+           timeout: timeoutMs (default 60s, analytics/research use 90-120s)
 2) Groq_API_1 → Groq_API_2 → Groq_API_3
    POST https://api.groq.com/openai/v1/chat/completions
+   model: llama-3.3-70b-versatile, max_tokens: 2048, temperature: 0.1
+3) throw "All LLM providers failed"
 ```
 
-### Embeddings — `getEmbedding`
-```
-1) Ollama /api/embeddings  (nomic-embed-text → ~768-d)
-2) HuggingFace featureExtraction (MiniLM → ~384-d)
-3) Empty vector → text/regex retrieval fallback
-```
-
-**Why store `embeddingModel` on chunks?** So a 768-d corpus is never cosine-compared with a 384-d query vector.
-
----
-
-## 14. Rate Limiting & Subscriptions
-
-| Plan | Chat/Voice | Query Genius AI ops |
-|---|---|---|
-| Starter / inactive | ~10 | ~10 |
-| Pro-Chat | ~500 chat+voice | low query |
-| Pro-Query | low chat/voice | ~500 |
-| Business | unlimited | unlimited |
-| `ADMIN_MAIL` | bypass | bypass |
-
-- **Pattern:** increment-then-check; rollback + **429** if over limit.  
-- **Counted:** chat messages, voice queries, QG read/update/delete, analytics, AI LookUp.  
-- **Not counted:** uploads, schema, inserts, manual LookUp.  
-- **Payments:** manual UPI via email — not Stripe.
-
----
-
-## 15. Email Flows
-
-| Event | To | Purpose |
-|---|---|---|
-| Signup | User | Email verification |
-| Forgot password | User | Reset link (~15 min) |
-| Subscription request | Admin mailbox | New upgrade request |
-| Subscription queued | User | UPI instructions |
-| Approved / Rejected | User | Plan outcome |
-
-SMTP via `EMAIL_*` env vars.
-
----
-
-## 16. Environment & External Connections
-
-| Variable | Connection |
-|---|---|
-| `MONGO_URI` | Main DB (`Agento`) |
-| `MONGO_URI_ADMIN` | Subscription DB (`AgentoAdmin`) |
-| `NEXTAUTH_SECRET` / `NEXTAUTH_URL` | Auth |
-| `OLLAMA_URL` / `OLLAMA_MODEL` / `OLLAMA_EMBEDDING_MODEL` | Local AI |
-| `Groq_API_1..3` | Cloud LLM |
-| `HF_TOKEN` / `HF_EMBEDDING_MODEL` | Cloud embeddings |
-| `EMAIL_*` | Gmail SMTP |
-| `ADMIN_MAIL` / `NEXT_PUBLIC_ADMIN_MAIL` | Super-admin + UI gate |
-| `NEXT_PUBLIC_ADMIN_UPI_PHONE_NO` | Pricing UPI display |
-
----
-
-## 17. Methodology & Design Patterns (Deep Dive)
-
-This section is the **“how and why”** behind every major subsystem — strategies, algorithms, design patterns, and interview-ready justifications grounded in the actual code.
-
-**One-line pitch:**  
-> “We built a multi-tenant RAG SaaS on Next.js as a full-stack BFF, with app-side vector retrieval over MongoDB, LLM provider failover, and a second NL-to-Mongo analytics surface for structured data.”
-
----
-
-### 17.0 Pattern catalog (quick map)
-
-| Pattern / methodology | Where used | Intent |
-|---|---|---|
-| Backend-for-Frontend (BFF) | `app/api/*` | One deployable; UI-shaped APIs |
-| Shared-nothing multi-tenancy | `company_id` everywhere | Isolate customers |
-| RBAC + feature flags | roles + PublicLink.features | Least privilege |
-| Retrieve-then-Generate (RAG) | docs → chat/voice | Ground answers in company docs |
-| Fixed-size chunking + overlap | `chunkText` | Balance recall vs context |
-| Hybrid retrieval | cosine → regex fallback | Resilience when vectors fail |
-| Provider cascade / Circuit-style failover | `callLLM`, `getEmbedding` | Local-first, cloud backup |
-| Embedding-space isolation | `embeddingModel` field | Never mix 768-d with 384-d |
-| Prompt specialization | chat vs voice system prompts | Channel-appropriate answers |
-| Secondary LLM call (tool-like) | Mermaid flowchart | Structured diagram generation |
-| NL → Query (Text-to-Mongo) | Query Genius read/update/delete | Structured analytics without SQL skill |
-| Schema-on-read inference | `inferSchema` | Soft constraints without rigid DDL |
-| Guardrails / validate-then-execute | QG insert/update/delete | Stop bad LLM or form writes |
-| Dual-path LookUp | manual pipeline vs AI pipeline | Power users + NL users |
-| Analytics intent taxonomy | 4D analytics prompts | Descriptive→Prescriptive framing |
-| Optimistic rate metering | increment-then-check-rollback | Simple usage enforcement |
-| Half-duplex voice | mute STT while TTS | Kill feedback loops |
-| Token-based guest identity | PublicLink | Embed without full accounts |
-| Dual database | Agento vs AgentoAdmin | Separate product vs billing ops |
-
----
-
-### 17.1 Overall software methodology
-
-| Decision | Choice | Why |
-|---|---|---|
-| Architecture style | **Monolithic full-stack Next.js** (App Router) | Pilot speed; no microservices tax |
-| API style | REST Route Handlers (JSON) | Simple, browser-native `fetch` |
-| UI rendering | Mostly **CSR** + session cookies | Interactive dashboards, voice, charts |
-| Persistence | MongoDB document store | Flexible docs + vectors + sessions in one DB |
-| AI integration | Thin `lib/llm.ts` wrapper | Swap providers without rewriting features |
-| Security model | JWT session + guest token header | Two identity modes, one company scope |
-| Delivery model | SaaS multi-tenant | One app, many companies |
-
-**Not used (and why that matters in interviews):** no LangChain/LlamaIndex agent graph, no dedicated vector DB, no Stripe webhook billing, no WebRTC voice server. Those are deliberate pilot trade-offs, not omissions by accident.
-
----
-
-### 17.2 Multi-tenancy methodology
-
-**Strategy:** *Shared database, shared collections, row-level (document-level) isolation by `company_id`.*
-
-| Concern | Implementation |
-|---|---|
-| User tenancy | `User.company_id` / `company_name` |
-| RAG isolation | Vector query: `"metadata.company_id": companyId` |
-| Chat history | `ChatSession.company_id` + `user_email` |
-| Query Genius | Physical collection prefix `qg_{companyId}_{name}` |
-| Guest | Inherits `PublicLink.company_id` |
-
-**Pattern name:** Shared-schema multi-tenancy with **namespace prefixing** for structured data (stronger isolation than a soft filter alone).
-
-**Interview answer:** “We chose shared Mongo with `company_id` filters for RAG, and hard collection namespacing for Query Genius so aggregations cannot accidentally scan another tenant’s tables.”
-
----
-
-### 17.3 Auth / identity design patterns
-
-| Pattern | Detail |
-|---|---|
-| Credentials + JWT | NextAuth stores company/role claims in token |
-| Defense in depth | Email verification **and** admin `accountVerified` for employees |
-| Synthetic guest principal | `guest@{token}` email for session ownership without User row |
-| Capability flags | Guest UI/API gated by `features: ["chat","voice"]` |
-| Admin bypass | `ADMIN_MAIL` skips rate limits for ops testing |
-
----
-
-### 17.4 RAG methodology (full strategy)
-
-Agento’s document AI is classic **Retrieve-Augmented Generation** with these concrete stages:
+### Embeddings — `getEmbedding(text)`
 
 ```
-Extract → Clean → Chunk → Embed → Store
-                ↘
-Query → Embed → Filter(tenant + model) → Rank(cosine) → Top-K → Prompt → Generate → Cite
-                                      ↘ if empty: Keyword/Regex fallback
+1) Ollama /api/embeddings
+   model: OLLAMA_EMBEDDING_MODEL (nomic-embed-text → ~768-dim)
+   timeout: 10s
+2) HuggingFace featureExtraction
+   model: HF_EMBEDDING_MODEL (all-MiniLM-L6-v2 → ~384-dim)
+3) Return { embedding: [], model: "" } → text/regex fallback in caller
 ```
 
-#### 17.4.1 Document extraction strategy
-
-| File type | Method |
-|---|---|
-| PDF | `unpdf` (`getDocumentProxy` + `extractText`, merge pages) |
-| TXT / MD / CSV / JSON | `file.text()` as UTF-8 |
-
-**Allowed extensions:** `.pdf`, `.txt`, `.md`, `.csv`, `.json`  
-**Category taxonomy (manual tagging at upload):** HR, Engineering, Sales, Marketing, Finance, Legal, Operations, General — used later for **citations**, not for retrieval filtering today.
-
-#### 17.4.2 Cleaning strategy (`cleanText` / `isGoodText`)
-
-PDF extraction is noisy (headers, footers, glyphs). Cleaning is a **line-quality filter**:
-
-1. Split into lines  
-2. Keep a line only if:
-   - length ≥ 10  
-   - alphanumeric ratio ≥ 40%  
-   - at least 2 alphabetic words of length ≥ 3  
-3. Join surviving lines into one space-normalized paragraph string  
-4. Fix spacing before punctuation  
-
-**Pattern:** Heuristic OCR/PDF denoise before chunking (improves embedding quality).
-
-#### 17.4.3 Chunking strategy (`chunkText`) — important for interviews
-
-| Parameter | Value in code | Meaning |
-|---|---|---|
-| **Chunk size** | **~1000 characters** | Target max length per chunk |
-| **Overlap** | **~200 characters** (implemented as last `floor(200/5)=40` words carried forward) | Continuity across boundaries |
-| **Unit** | Word-based accumulation | Split on whitespace, grow until size exceeded |
-| **Min doc** | Skip if cleaned text &lt; 50 chars | Reject empty/garbage files |
-| **Min chunk source** | If text &lt; 50 chars → no chunks | Guard |
-
-**Algorithm (sliding window / fixed-size with overlap):**
-
-1. Split cleaned text into words.  
-2. Append words into `current` until `(current + word).length > 1000`.  
-3. Push `current` as a chunk.  
-4. Start next chunk with **tail of previous words** (`slice(-overlap/5)`) + new word → soft overlap.  
-5. Push final remainder.
-
-**Why this strategy?**
-
-| Goal | How chunking helps |
-|---|---|
-| Fit embedding model context | Smaller passages embed cleaner than whole PDFs |
-| Improve recall | Specific paragraphs match questions better than giant blobs |
-| Preserve continuity | Overlap reduces answers cut mid-sentence across chunk borders |
-| Simple to implement | Character budget is easy to reason about vs recursive/semantic splitters |
-
-**What it is *not*:**  
-Not semantic chunking, not recursive CharacterTextSplitter, not sentence-window retrieval, not parent-document retriever. For interviews: “We used **fixed-size word-window chunking with overlap** as a pragmatic baseline.”
-
-**Trade-offs to mention:**
-
-- Pros: deterministic, fast, good enough for policy/HR docs.  
-- Cons: may split mid-section; no heading-aware splits; overlap heuristic is approximate (`overlap/5` words, not exact 200 chars).
-
-#### 17.4.4 Embedding strategy
-
-| Step | Behavior |
-|---|---|
-| Per chunk | Call `getEmbedding(chunk)` → store `vectorContent` + `embeddingModel` |
-| Failure per chunk | Log warn, skip that chunk (don’t fail whole upload if some succeed) |
-| Whole upload fail | If **zero** embeddings → 500 |
-| Local model | Ollama `nomic-embed-text` → typically **768-d** |
-| Cloud fallback | HF `all-MiniLM-L6-v2` → typically **384-d** |
-
-**Design rule:** *Always persist which model produced the vector* so query-time cosine never mixes spaces.
-
-#### 17.4.5 Retrieval strategy (hybrid)
-
-**Primary — Dense / semantic retrieval**
-
-1. Load up to **100** chunks for `company_id` (pilot cap).  
-2. Embed the user query.  
-3. Keep only chunks where `embeddingModel === queryModel`.  
-4. Score with **cosine similarity**:
-
-\[
-\text{cosine}(a,b) = \frac{a\cdot b}{\|a\|\|b\|}
-\]
-
-5. Filter `score > 0.2` (absolute threshold).  
-6. Sort descending, take **Top-K = 5**.  
-7. Join chunk texts with `\n\n---\n\n` as CONTEXT.
-
-**Secondary — Sparse / lexical fallback**
-
-If no vector hits: Mongo `$regex` (case-insensitive) on `textContent`, limit 10.
-
-**Pattern name:** **Hybrid retrieval** (dense first, lexical backup) without a full BM25 index.
-
-**Why threshold 0.2 and K=5?**  
-- Threshold drops weak matches that pollute the prompt.  
-- Top-5 balances context richness vs LLM context window / cost.  
-Interview note: these are **heuristic hyperparameters**, not learned.
-
-#### 17.4.6 Generation / prompting strategy
-
-| Mode | System prompt strategy | Post-process |
-|---|---|---|
-| **Chat** | Company-named assistant; “use CONTEXT”; encourage numbered steps for processes | Full answer |
-| **Voice** | “Agento”; max 2–3 sentences; simple language | Truncate &gt;500 chars at sentence boundary |
-
-**Conversation memory:** last **6** history turns concatenated into the prompt (sliding window memory — not a vector memory store).
-
-**Grounding pattern:** Context block injected into system prompt (“CONTEXT: …”). If empty: model may give general answer / admit missing docs (prompt-dependent).
-
-#### 17.4.7 Citation strategy
-
-- Map retrieved chunks → `{ filename, category }`  
-- Deduplicate by filename (`Map`)  
-- Return alongside answer for UI trust / audit
-
-#### 17.4.8 Flowchart secondary generation (agent-like tool step)
-
-**Trigger methodology:** keyword heuristic `needsFlowchart(query)`  
-(e.g. “how to”, “steps”, “process”, “workflow”, “onboarding”, …)
-
-**If triggered:** second LLM call with strict Mermaid rules → parse/clean → optional `mermaidCode`.
-
-**Pattern:** *Conditional secondary LLM call* (lightweight tool use without an agent framework). Not a full ReAct loop.
-
-#### 17.4.9 RAG pattern summary table
-
-| Stage | Method | Code location |
-|---|---|---|
-| Extract | unpdf / text | `documents/upload` |
-| Clean | line heuristics | `cleanText` |
-| Chunk | ~1000 chars + overlap | `chunkText` |
-| Embed | Ollama → HF | `getEmbedding` |
-| Store | Mongo `vector_store` | `VectorChunk.insertMany` |
-| Retrieve | cosine Top-5, score&gt;0.2 | `/api/chat` |
-| Fallback | regex text search | `/api/chat` |
-| Generate | Ollama → Groq | `callLLM` |
-| Cite | filename/category | response JSON |
-| Diagram | keyword → Mermaid LLM | `generateFlowchart` |
+**Why store `embeddingModel` on chunks?** So a 768-dim corpus is never cosine-compared with a 384-dim query vector. The retrieval step filters `chunk.embeddingModel === queryModel` before scoring.
 
 ---
 
-### 17.5 Query Genius methodology (structured AI)
+## 15. Rate Limiting & Subscriptions
 
-Query Genius is **not RAG**. It is **NL → MongoDB execution** over company tabular data (Text-to-Query / NL2Mongo), plus schema inference and charting.
+### Plan limits
 
-#### 17.5.1 Data modeling strategy
-
-| Concept | Approach |
-|---|---|
-| Physical isolation | Collection name = `qg_{company_id}_{logicalName}` |
-| Schema storage | Soft meta in `qg_meta_{company_id}` + runtime `inferSchema` |
-| No Mongoose models for QG data | Raw Mongo driver for dynamic fields |
-
-**Pattern:** **Schema-on-read** (infer constraints from samples) rather than rigid migrations.
-
-#### 17.5.2 Schema inference methodology (`inferSchema`)
-
-Sample up to **500** documents, then per field compute:
-
-| Constraint | How detected |
-|---|---|
-| `type` | Dominant JS `typeof` among non-null values |
-| `nullable` | Any null/undefined seen |
-| `unique` | Distinct count == non-null count **and** field looks like key (`id`, `*_id`, `*Id`, or number) |
-| `isAutoIncrement` | Unique integers that form a contiguous sequence |
-| `isPrimaryKey` | `id` / `*_id` or unique+autoincrement |
-| `min` / `max` | For numbers |
-| `enumValues` | String field with ≤15 distinct values and ≥3 samples |
-| `sampleValues` | First 3 examples (fed into LLM prompts) |
-
-**Why:** Gives LLM and UI enough structure to generate safe filters and validate inserts — without requiring the user to write a JSON Schema by hand.
-
-#### 17.5.3 Operation strategies (CRUD)
-
-| Op | AI involved? | Methodology |
+| Plan | Chat + Voice | Query Genius AI ops |
 |---|---|---|
-| **Read** | Yes | Prompt LLM with fields + sample → **aggregation pipeline JSON only** → `aggregate()` → sanitize |
-| **Insert** | No (usually) | Form values coerced/validated against inferred schema (required, number, enum, autoincrement) |
-| **Update** | Yes | LLM → filter + `$set`; guards around PK/enums |
-| **Delete** | Yes | LLM → filter; guarded deleteMany |
+| Starter (default / inactive) | 10 each | 10 |
+| Pro-Chat | 500 chat + 500 voice | 10 (starter rate) |
+| Pro-Query | 10 chat + 10 voice | 500 |
+| Business | Unlimited | Unlimited |
+| `ADMIN_MAIL` env var | Unlimited bypass | Unlimited bypass |
 
-**Prompt contract for Read (design pattern: constrained output):**
-
-- “Return ONLY a valid JSON array”  
-- Prefer `$regex` with `i` for text  
-- Numeric ops via `$gt/$lt/...`  
-- Always `$limit: 100` unless count asked  
-- Strip markdown fences; regex-extract first JSON array; `JSON.parse`
-
-**Pattern names:**
-
-- **Text-to-Aggregation**  
-- **Constrained decoding via prompt** (soft; not grammar-constrained decoding)  
-- **Validate-then-execute** (parse fail → empty/error, don’t run garbage)  
-- **LLM for query planning, DB for truth** (numbers come from Mongo, not model hallucination)
-
-#### 17.5.4 LookUp (visualization) methodology
-
-**Dual-path design:**
-
-| Mode | Who builds pipeline | Rate limit |
-|---|---|---|
-| **Manual** | Server builds `$group` / `$limit` from `xAxis`, `yAxis`, `aggType` (`sum|avg|min|max|count|none`) | No AI quota |
-| **AI** | LLM returns `PIPELINE` + `CHART_TYPE` | Counts as query AI call |
-
-**Manual pipeline patterns:**
-
-- `none` → `$limit: 100` raw  
-- `count` → `$group` by xAxis + `$sum: 1`  
-- numeric agg → `$group` + `$convert` to double (onError/onNull → 0)
-
-**UI pattern:** server returns rows + chart type → **Recharts** renders (Bar/Line/Area/Pie/Scatter).
-
-#### 17.5.5 Analytics methodology (4 intents)
-
-Same execution skeleton; **different system prompts** (intent taxonomy):
-
-| Type | Business question framing | Prompt role |
-|---|---|---|
-| Descriptive | What happened? | Counts, averages, distributions |
-| Diagnostic | Why did it happen? | Correlations, segments, root causes |
-| Predictive | What might happen? | Trends / forecast-oriented aggregation narrative |
-| Prescriptive | What should we do? | Actionable recommendations |
-
-**Response contract (structured text parse):**
+### Algorithm (increment-first metering)
 
 ```
-PIPELINE: [ ... ]
-CHART_TYPE: bar|line|pie|area|scatter|none
-INSIGHT: ...
+1. $inc feature counter on User (chatCallCount / voiceCallCount / queryCallCount)
+2. Resolve active plan (check subscription + expiry → else starter)
+3. If used > limit:
+   → $inc -1 (rollback)
+   → return { allowed: false } → 429
+4. If allowed: return { allowed: true, used, limit }
 ```
 
-Then: parse → `aggregate` → flatten `_id` for charts → return insight + results.
+**What counts:** chat messages, voice queries, QG read/update/delete, analytics, AI LookUp.
+**What doesn't count:** uploads, schema reads, inserts, manual LookUp, Research Suite tools.
 
-**Important honesty for interviews:**  
-Predictive/prescriptive here are **LLM-guided analytical pipelines + narrative**, not trained forecasting models (ARIMA etc. lived only in legacy Streamlit).
+### Subscriptions
 
-**Timeout strategy:** analytics `callLLM(..., 120000)` — longer than default 60s because prompts + reasoning are heavier.
+Manual UPI payment process (no Stripe in pilot):
+1. User clicks upgrade → POST `/api/auth/subscription/request`
+2. Email sent to admin with plan + UPI instructions
+3. Admin verifies payment → PATCH request to approve
+4. `User.subscription = true`, `subscriptionPlan`, `subscriptionExpiry` set
+5. Confirmation email sent to user
 
-#### 17.5.6 Query Genius safety patterns
+---
 
-| Risk | Mitigation |
+## 16. Email Flows
+
+All email via Nodemailer + Gmail SMTP (`EMAIL_*` env vars).
+
+| Trigger | Recipient | Content |
+|---|---|---|
+| Signup | User | Email verification link (~24h token) |
+| Forgot password | User | Reset link (~15 min token) |
+| Subscription request | Admin mailbox | Plan details + UPI instructions |
+| Subscription queued | User | Confirmation + payment instructions |
+| Subscription approved | User | Plan activated |
+| Subscription rejected | User | Rejection notice |
+
+---
+
+## 17. Environment & External Connections
+
+| Variable | Purpose |
 |---|---|
-| Cross-tenant access | Prefixed collection names |
-| LLM invents fields | Schema/sample in prompt; validation on write |
-| Unbounded results | `$limit: 100` encouraged / applied |
-| Type errors on insert | Coercion + 422 validationErrors |
-| Enum drift | Reject values outside inferred enum |
-| Destructive ops | Still powerful — rely on auth + tenant scope (future: dry-run / confirm) |
+| `MONGO_URI` | Main DB (`Agento` — all product data) |
+| `MONGO_URI_ADMIN` | Admin DB (`AgentoAdmin` — subscription requests) |
+| `NEXTAUTH_SECRET` | JWT signing key |
+| `NEXTAUTH_URL` | Canonical app URL (set to prod domain in production) |
+| `OLLAMA_URL` | Ollama instance base URL |
+| `OLLAMA_MODEL` | Chat/completions model name |
+| `OLLAMA_EMBEDDING_MODEL` | Embedding model name (nomic-embed-text) |
+| `Groq_API_1..3` | Groq cloud LLM fallback keys (free tier at console.groq.com) |
+| `HF_TOKEN` | HuggingFace inference token (free at hf.co) |
+| `HF_EMBEDDING_MODEL` | HF embedding model (all-MiniLM-L6-v2) |
+| `EMAIL_HOST/PORT/FROM/USER/PASS` | Gmail SMTP for transactional email |
+| `ADMIN_MAIL` | Server-side admin bypass + email recipient |
+| `NEXT_PUBLIC_ADMIN_MAIL` | Client-side admin UI gate |
+| `NEXT_PUBLIC_ADMIN_UPI_PHONE_NO` | Pricing page UPI display |
 
 ---
 
-### 17.6 LLM provider methodology
+## 18. Methodology & Design Patterns
 
-| Concern | Strategy |
+### 18.1 Pattern catalog
+
+| Pattern | Where used |
 |---|---|
-| Local-first | Prefer Ollama for cost/privacy/dev |
-| Failover | Cascade Groq keys 1→2→3 |
-| Temperature | `0.1` (low) for more deterministic pipelines/answers |
-| Completions timeout | Default 60s; analytics 120s |
-| Embeddings timeout | Short Ollama attempt then HF |
-| Coupling | Features call `callLLM` / `getEmbedding` only — **Adapter pattern** |
+| Backend-for-Frontend (BFF) | `app/api/*` |
+| Shared-nothing multi-tenancy | `company_id` on all models |
+| RBAC + feature flags | roles + PublicLink.features |
+| Retrieve-then-Generate (RAG) | Core chat/voice + Notebook LLM |
+| Fixed-size chunking with overlap | `chunkText()` |
+| Hybrid retrieval (dense + lexical) | `/api/chat`, notebook chat |
+| Provider cascade / failover | `callLLM()`, `getEmbedding()` |
+| Embedding dimension isolation | `embeddingModel` field on VectorChunk |
+| Secondary LLM call (tool-like) | Mermaid flowchart generation |
+| NL → Query (Text-to-Mongo) | Query Genius CRUD + analytics |
+| Schema-on-read inference | `inferSchema()` |
+| Validate-then-execute | QG insert/update/delete guards |
+| Dual-path visualization | Manual LookUp vs AI LookUp |
+| Analytics intent taxonomy | 4D analytics prompt framing |
+| Increment-first rate metering | `checkAndIncrementAILimit()` |
+| Half-duplex audio | Stop STT while TTS plays |
+| Token-based guest identity | PublicLink resolve |
+| Dual database | Agento vs AgentoAdmin |
+| Global persistent profile | WritingProfile (one per user) |
+| In-memory session store | Notebook RAG embeddings |
+| File System Access API | Coding Assistant local R/W |
+| Request-body context passing | Coding chat (stateless server) |
+| Client-side Word generation | `docx` library, Packer.toBlob() |
+| Canvas particle animation | ResearchOrb photon system |
+| Lazy tree loading | Coding file explorer (expand on demand) |
+| Adapter pattern for LLM | `lib/llm.ts` wraps all providers |
 
-**Pattern:** *Retry/failover chain* (simple sequential fallback; not full circuit breaker with half-open state).
+### 18.2 Key architecture decisions with rationale
 
----
+**Why File System Access API instead of upload for the code editor?**
+Upload creates stale server-side copies that go out of sync as files are edited. The FS API gives true read/write to the live disk, matches VS Code's actual model, and eliminates the need for a server-side file store entirely. The trade-off: requires Chrome/Edge 86+ (Safari unsupported without flag, Firefox requires flag).
 
-### 17.7 Voice methodology & UX patterns
+**Why a global WritingProfile instead of per-session samples?**
+Writing style is a persistent user characteristic — it doesn't change per conversation. Making users re-upload samples for every chat would be a friction failure. One profile per user email (unique MongoDB index) ensures samples accumulate and style analysis improves over time.
 
-| Pattern | Detail |
-|---|---|
-| Browser STT/TTS | Web Speech API — no media upload server |
-| Continuous listening | `continuous` + restart on `onend` |
-| Endpointing | ~1.5s silence timer → submit utterance |
-| Half-duplex | Stop recognition while `isSpeaking` / TTS |
-| Stale-closure fix | `isInCallRef` / `isSpeakingRef` for event handlers |
-| Ignore expected errors | Treat `aborted` as normal on stop |
-| Permission priming | `getUserMedia({audio:true})` then stop tracks |
-| Channel adaptation | Voice RAG prompt + truncation for spoken delivery |
-| Echo control | Same as half-duplex — critical product bug class |
+**Why in-memory store for Notebook RAG instead of a new `NotebookVectorChunk` collection?**
+Notebook documents are per-notebook and often temporary (exploratory research). A permanent collection would accumulate rarely-reused vectors. The in-memory store trades persistence (lost on server restart) for zero schema overhead and fast retrieval. Doc references (names, sizes) are still persisted in `NotebookSession.docs[]` so the UI never shows phantom files.
 
-**Design principle:** Voice is a **thin client modality** over the same RAG API (`mode: "voice"`), not a separate AI stack.
+**Why send file content in the coding chat request body instead of a server store?**
+The File System Access API means files live on the user's local disk. The server can never independently read them. The only option for AI context is for the browser to send selected file contents in the request. This also makes the server completely stateless for coding sessions — simpler, more scalable, no cleanup needed.
 
----
+**Why not use LangChain / LlamaIndex?**
+For the pilot's scope (fixed RAG, fixed analytics pipelines), adding an agent framework would introduce abstraction overhead without proportional benefit. `lib/llm.ts` is a thin adapter that provides the same failover behavior with 50 lines of code. The methodology is still RAG; the infrastructure is just less abstracted.
 
-### 17.8 Frontend methodology
+### 18.3 Cross-cutting design principles
 
-| Pattern | Usage |
-|---|---|
-| Container pages | Large `"use client"` pages own state + fetch |
-| Session gate | `useSession` + redirect unauthenticated |
-| Optimistic UI status | Call status: Ready → Starting mic → Listening → Processing → Speaking |
-| Feature toggle UI | Chat/Voice tabs; guest feature flags |
-| Presentational markdown | Custom lightweight markdown renderers (chat vs voice themes) |
-| Chart composition | Recharts fed by API results |
-| Embed contract | iframe + `allow="microphone"` |
+1. **Ground generation in data.** RAG context or Mongo execution results, not free hallucination when retrieval works.
+2. **Tenant walls first.** Every read/write path scopes by `company_id`.
+3. **Degrade gracefully.** Ollama→Groq, vectors→regex, AI LookUp→manual LookUp.
+4. **Constrain model output.** JSON-only / PIPELINE blocks; parse defensively.
+5. **Keep modalities thin.** Voice/chat share `/api/chat`. Code chat is stateless via request body.
+6. **Pilot pragmatism.** Fixed chunking + in-memory cosine before introducing vector DB complexity.
+7. **Client-side for local data.** File System API and `docx` export both run in the browser — no server needed for private local operations.
 
----
+### 18.4 Interview answer: "What design patterns did you use?"
 
-### 17.9 Backend / API methodology
+**Short list:**
+BFF pattern · Multi-tenant shared-DB with namespace prefixing · RAG (retrieve-then-generate) · Fixed-size chunking with overlap · Hybrid retrieval (dense + keyword) · LLM adapter + failover cascade · Schema-on-read inference · Text-to-Mongo with validate-then-execute · Dual-path visualization · Half-duplex audio UX · RBAC + feature flags · Increment-first rate metering · Global persistent profile · File System Access API for local-first editing · Client-side docx generation · Canvas particle animation · Request-body context for stateless AI
 
-| Pattern | Usage |
-|---|---|
-| Route Handler per resource | REST verbs on `/api/...` |
-| Shared libs | `lib/db`, `lib/llm`, `lib/rateLimit`, `lib/guestAuth` |
-| Auth branching | Session **or** guest token in chat routes |
-| Error mapping | 401/403/422/429/500 with JSON `{ message }` |
-| Connection caching | Mongoose connect singleton (serverless-friendly) |
-
----
-
-### 17.10 Rate limiting methodology
-
-**Algorithm:** *Increment-first metering with rollback*
-
-1. `$inc` feature counter on User  
-2. Resolve active plan (respect expiry → else starter)  
-3. If `used > limit` → `$inc -1` and return **429**  
-4. Admin email → unlimited bypass  
-
-**Why increment-first?** Simple atomic-ish metering under concurrent requests; overshoot corrected by rollback.
-
-**Feature budgeting:** separate counters for chat / voice / query so Pro-Chat doesn’t burn Query Genius quota and vice versa.
+**Differentiator sentence:**
+"We split unstructured knowledge (RAG) from structured analytics (NL→Mongo), added a local-first code editor using the browser's File System Access API, and a persistent global writing profile for style-matched generation — all sharing one LLM adapter with Ollama→Groq→HuggingFace failover."
 
 ---
 
-### 17.11 Guest / embed methodology
+## 19. End-to-End Workflow Diagrams
 
-| Pattern | Detail |
-|---|---|
-| Capability URL | Token encodes access; features array encodes scope |
-| Header auth | `x-guest-token` (not cookies) — iframe-friendly |
-| Usage accounting | `guestCallCount` on link (separate from User counters) |
-| Ops controls | Enable/disable, regenerate, delete, toggle features |
+### 19.1 Document → Answer (Core RAG)
 
----
-
-### 17.12 Email / subscription methodology
-
-| Pattern | Detail |
-|---|---|
-| Tokenized email verify/reset | Hash stored server-side; raw token in email link |
-| Manual commerce | UPI + admin approve (no payment webhook) |
-| Dual DB | SubscriptionRequest queue in admin database |
-
----
-
-### 17.13 Cross-cutting design principles (say these in interviews)
-
-1. **Ground generation in data** — RAG context or Mongo execution results, not free-hallucinated business facts when retrieval/query works.  
-2. **Tenant walls first** — every read/write path scopes by company.  
-3. **Degrade gracefully** — Ollama→Groq, vectors→regex, AI LookUp→manual LookUp.  
-4. **Constrain model output** — JSON-only / PIPELINE blocks; parse defensively.  
-5. **Keep modalities thin** — voice/chat share `/api/chat`; charts share aggregation execution.  
-6. **Pilot pragmatism** — fixed chunking + in-memory cosine before introducing vector DB complexity.
-
----
-
-### 17.14 What to say if asked “What design patterns did you use?”
-
-**Short answer list:**
-
-- BFF / API Route Handlers  
-- Multi-tenant shared DB + namespaced collections  
-- RAG (retrieve-then-generate)  
-- Fixed-size chunking with overlap  
-- Hybrid retrieval (vector + keyword)  
-- Adapter + failover for LLM/embeddings  
-- Schema-on-read inference  
-- Text-to-Mongo with validate-then-execute  
-- Dual-path visualization (manual vs AI)  
-- Half-duplex audio UX  
-- RBAC + feature flags  
-- Metered feature usage (increment/rollback)
-
-**Longer differentiator:**  
-“We split unstructured knowledge (RAG) from structured analytics (NL→Mongo). Same LLM layer, different methodologies: similarity retrieval vs query generation with schema guardrails.”
-
----
-
-## 18. End-to-End Workflow Diagrams
-
-
-## 18. End-to-End Workflow Diagrams
-
-The diagrams below are **summaries**, not substitutes for the paragraphs in sections 0, 3, 9, 10, and 11. Use a diagram to recall sequence; use the prose to explain *why* each step exists when someone asks follow-up questions.
-
-### 18.1 Document → Answer (RAG)
-
-```mermaid
-sequenceDiagram
-  participant Admin
-  participant UploadAPI as /api/documents/upload
-  participant Mongo
-  participant Embed as getEmbedding
-  participant User
-  participant ChatAPI as /api/chat
-  participant LLM as callLLM
-
-  Admin->>UploadAPI: PDF/TXT + category
-  UploadAPI->>UploadAPI: extract + clean + chunk
-  loop each chunk
-    UploadAPI->>Embed: embed chunk
-    UploadAPI->>Mongo: save VectorChunk
-  end
-  User->>ChatAPI: question (+ history, mode)
-  ChatAPI->>Mongo: load company chunks
-  ChatAPI->>Embed: embed question
-  ChatAPI->>ChatAPI: cosine top-k (+ text fallback)
-  ChatAPI->>LLM: context + prompt
-  LLM-->>ChatAPI: answer
-  ChatAPI-->>User: message + citations
+```
+Admin uploads file
+  ↓
+/api/documents/upload
+  → extract text (unpdf / file.text())
+  → cleanText() — noise filter
+  → chunkText() — ~1000 chars + overlap
+  → getEmbedding() per chunk (Ollama → HF)
+  → VectorChunk.insertMany() [company_id, vectorContent, embeddingModel]
+  ↓
+Employee asks question in /chat-voice
+  ↓
+/api/chat
+  → session OR guest token → company_id
+  → checkAndIncrementAILimit()
+  → load ≤100 VectorChunks for company
+  → getEmbedding(query) → cosine Top-5, score>0.2
+  → if empty: $regex fallback
+  → build prompt (context + history + message)
+  → callLLM()
+  → optional: needsFlowchart() → second callLLM() → Mermaid
+  → return { message, mermaidCode?, citations[] }
 ```
 
-### 18.2 Query Genius analytics
+### 19.2 Query Genius Analytics
 
-```mermaid
-sequenceDiagram
-  participant User
-  participant UI as Query Genius UI
-  participant API as /api/query-genius/analytics
-  participant LLM as callLLM
-  participant Mongo
-
-  User->>UI: pick collection + analytics type + question
-  UI->>API: POST type, collection, query
-  API->>LLM: ask for PIPELINE + CHART + INSIGHT
-  LLM-->>API: structured response
-  API->>Mongo: run aggregation
-  API-->>UI: results + insight + chartType
-  UI->>UI: render Recharts
+```
+User selects collection + analytics type + question
+  ↓
+/api/query-genius/analytics
+  → callLLM(type-specific prompt asking for PIPELINE+CHART_TYPE+INSIGHT)
+  → parse response (extract JSON pipeline)
+  → db.collection(qg_{company}_{name}).aggregate(pipeline)
+  → flatten results for chart
+  → return { results, insight, chartType }
+  ↓
+UI → Recharts renders chart + AI insight panel
 ```
 
-### 18.3 Voice call loop
+### 19.3 Notebook LLM — Chat
 
-```mermaid
-stateDiagram-v2
-  [*] --> Ready
-  Ready --> StartingMic: Start call
-  StartingMic --> Listening: onstart
-  StartingMic --> MicError: permission / start fail
-  Listening --> Processing: silence after speech
-  Processing --> Speaking: LLM answer + TTS
-  Speaking --> Listening: TTS end (unmute mic)
-  Listening --> Ready: End call
-  Speaking --> Ready: End call
+```
+User opens /research/notebook/[id]
+  → Load NotebookSession (docs[], messages[])
+  → If docs not in memory: user uploads → /api/research/notebook/upload
+      → extract → chunk → embed → store in global.__notebook_sessions__[notebookId]
+  → User asks question
+  ↓
+/api/research/notebook/chat { message, history, sessionId: notebookId }
+  → getNotebookStore().get(notebookId) → DocEntry[]
+  → getEmbedding(query) → cosine search across all docs' chunks
+  → Top-6 relevant chunks → build context
+  → callLLM(context + history + question)
+  → return { message, citations[] }
+  ↓
+Page → PATCH /api/research/notebook/sessions/[id] to persist message pair
+```
+
+### 19.4 Human Writer — Chat
+
+```
+User uploads writing sample (once, ever)
+  ↓
+/api/research/human-writer/profile POST
+  → save to WritingProfile.samples[] (MongoDB, permanent)
+  → background: refreshAnalysis() → callLLM(style analysis) → cache in styleAnalysis
+
+User asks "Write a LinkedIn post about AI"
+  ↓
+/api/research/human-writer/chat POST { message, history }
+  → WritingProfile.findOne({ user_email }) from DB
+  → build context: styleAnalysis + sample content (≤4000 chars)
+  → callLLM(style context + history + message, 90000)
+  → respond in user's voice
+  ↓
+Page → PATCH HumanWriterSession to persist
+```
+
+### 19.5 AI Research Summary — Paper Generation
+
+```
+User fills 4 accordion sections + selects format
+  ↓
+Page animate: nodes 1→2→3→4 light up sequentially (1.5s each)
+Canvas: photon particles fire from each node toward center orb
+  ↓
+/api/research/ai-research/generate POST { idea, prior, approach, result, format }
+  → format-specific system prompt (standard / ieee / springer / acm / abstract)
+  → callLLM(prompt, 120000)
+  → return formatted paper text
+  ↓
+Canvas: orb turns gold then green
+Page: PaperPreview renders paper in Georgia serif
+Page: POST /api/research/sessions → save to ResearchSession
+  ↓
+Export button → dropdown:
+  → "Word Document": import("docx") client-side → Packer.toBlob() → download .docx
+  → Other formats: re-call /api/research/ai-research/generate with new format → .txt
+```
+
+### 19.6 AI Coding Assistant — Edit + AI Chat
+
+```
+User clicks "Open Folder"
+  → window.showDirectoryPicker({ mode: "readwrite" })
+  → FileSystemDirectoryHandle returned (browser OS permission granted)
+  → readDir() recursively → tree state (lazy-load children)
+
+User clicks a file in explorer
+  → fileHandle.getFile() → file.text() → Monaco Editor loads content
+  → Tab opened, language auto-detected
+
+User edits code
+  → Monaco onChange → React state update (openTabs[].content)
+  → Ctrl+S → fileHandle.createWritable() → write → close
+  → File saved directly to local disk (no server involved)
+
+User asks AI "What does this function do?"
+  ↓
+/api/research/coding/chat POST { message, history, activeFile, contextFiles, folderSummary }
+  → No server-side store lookup
+  → Build prompt sections from request body
+  → callLLM(prompt, 120000)
+  → Concise response (≤6 sentences, code block only if change suggested)
+  → ChatContent renders: code blocks with copy buttons, inline bold/italic
+```
+
+### 19.7 Voice Call Loop
+
+```
+[Start]         → ensureMicPermission → SpeechRecognition.start()
+[Listening]     → onresult → show interim transcript
+[Submit]        → silence ~1.5s → POST /api/chat { mode: "voice" }
+[Processing]    → STT stopped (half-duplex — no echo)
+[Speaking]      → speechSynthesis.speak(trimmed answer)
+[End TTS]       → restart recognition if still in call
+[Error/Stop]    → graceful cleanup
 ```
 
 ---
 
-## 19. Interview Q&A
+## 20. Known Caveats / Trade-offs
 
-Use these as study notes. Answers are aligned to **this codebase**.
-
----
-
-### A. Product / System Design
-
-**Q1. What problem does Agento solve?**  
-**A:** Enterprises need an assistant that answers from *their* documents and can also query *their* tabular data — securely per company — with chat, voice, and optional public embed.
-
-**Q2. Why multi-tenant? How is isolation done?**  
-**A:** Each user has `company_id`. Documents, vector chunks, chat sessions, and Query Genius collections are filtered/prefixed by that ID. Guests inherit the link’s `company_id`. There is no shared global knowledge base across companies.
-
-**Q3. Why Next.js App Router instead of separate FE + Express?**  
-**A:** Route Handlers act as a BFF: one deployable, shared TypeScript types, cookie auth with NextAuth, and simpler ops for a pilot SaaS. Heavy UI stays client-side; AI/DB stays on the server.
-
-**Q4. What are the main bounded contexts?**  
-**A:** (1) Auth & tenancy, (2) Document RAG, (3) Voice UX, (4) Query Genius structured AI, (5) Billing/usage, (6) Guest sharing.
+| Area | Limitation | Reason / Trade-off |
+|---|---|---|
+| Subscription payments | Manual UPI via email; no Stripe | Pilot simplicity |
+| Voice support | Chrome/Edge recommended | Web Speech API compatibility |
+| File System Access API | Not available in Safari; Firefox requires flag | Browser API maturity |
+| Notebook RAG store | Lost on server restart | In-memory trade-off vs separate collection |
+| Research Suite rate limits | Not enforced in v0.3 | Separate from core feature billing |
+| Analytics accuracy | LLM-generated pipelines, not trained models | NL→Mongo is prompt-based |
+| Chunk quality | Fixed-size heuristic, not semantic | Baseline sufficient for policy docs |
+| Embedding cap | Top-100 candidates loaded per query | In-memory cosine on small corpus |
+| Coding AI context | Only open tabs sent | Browser can't push all files to server |
+| Word export | Browser-side docx; no server-side rendering | Simpler architecture, same output quality |
+| Dual DB | Admin DB separate connection | Billing/ops isolation without full microservice |
 
 ---
 
-### B. Frontend
-
-**Q5. Is the app SSR or CSR?**  
-**A:** Mostly **CSR** pages (`"use client"`) with `useSession`. Data fetching is via `fetch` to APIs. Root layout wraps `SessionProvider`.
-
-**Q6. How does chat-voice unified UI work?**  
-**A:** One page with `activeTab: "chat" | "voice"`. Separate message/session state per mode, same `/api/chat` backend with different `mode`.
-
-**Q7. How do you prevent the AI voice from being re-captured as user input?**  
-**A:** While TTS/`isSpeaking` is true, `SpeechRecognition` is stopped and `onend` must **not** auto-restart. After TTS ends, recognition restarts. Also ignore `aborted` errors from intentional stops.
-
-**Q8. Why request `getUserMedia` before SpeechRecognition?**  
-**A:** Explicitly prompts for mic permission and fails fast with a clear error if denied — Web Speech alone can hang in “starting” without a clear UX signal.
-
-**Q9. How are charts rendered?**  
-**A:** Recharts on the client. LookUp/analytics APIs return numeric results + `chartType`; UI maps to Bar/Line/Area/Pie/Scatter.
-
-**Q10. How does guest embed work in the browser?**  
-**A:** Admin provides iframe with `allow="microphone"`. Guest page validates token, toggles features, and sends `x-guest-token` on API calls.
-
----
-
-### C. Backend / APIs / Auth
-
-**Q11. How does authentication work?**  
-**A:** NextAuth Credentials provider: bcrypt verify → JWT session containing user id, company, role, verification flags.
-
-**Q12. How are guests authenticated without NextAuth users?**  
-**A:** Opaque token in `PublicLink`. Middleware-like checks in route handlers call `resolveGuestToken`. Identity email is synthetic `guest@{token}` for session ownership.
-
-**Q13. How do you prevent IDOR on chat sessions?**  
-**A:** Sessions are loaded/updated only if they match the authenticated user’s `company_id` and `user_email` (or guest email). Always verify ownership server-side.
-
-**Q14. Where is business logic placed?**  
-**A:** In Route Handlers + `lib/*` helpers (`llm`, `rateLimit`, `guestAuth`, `email`, `db`). Mongoose models for persistence.
-
-**Q15. Dual database — why?**  
-**A:** Product data stays in `Agento`. Subscription approval queue lives in `AgentoAdmin` so ops/admin concerns are separated from tenant product data.
-
-**Q16. How are passwords stored?**  
-**A:** bcrypt hashes; never plaintext. Reset/verify tokens stored as hashes with expiry.
-
----
-
-### D. AI / ML / RAG
-
-**Q17. Explain your RAG pipeline in one minute.**  
-**A:** Ingest documents → chunk with overlap → embed → store vectors in Mongo. At query time embed the question → cosine similarity against company chunks → top-k context → LLM prompt with history → answer + citations. Text search fallback if embeddings fail.
-
-**Q18. Why chunking with overlap?**  
-**A:** Keeps retrieval units small for better similarity matching while overlap preserves sentence/context continuity across boundaries.
-
-**Q19. Why cosine similarity in application code?**  
-**A:** Pilot simplicity — no vector DB product. Trade-off: loads limited chunks into memory (~100). Fine for early stage; scale would need Atlas Vector Search / FAISS / Pinecone / Qdrant.
-
-**Q20. How do you handle embedding dimension mismatch?**  
-**A:** Store `embeddingModel` on each chunk; filter retrieval to matching model so 768-d and 384-d spaces never mix.
-
-**Q21. What is the difference between chat and voice RAG?**  
-**A:** Same retrieval; different system prompts and post-processing (voice answers shortened for speech).
-
-**Q22. Are you using an “AI agent” framework?**  
-**A:** Not LangGraph/AutoGen. Patterns are: (1) RAG tool-less retrieve-then-generate, (2) LLM-as-planner for Mongo pipelines (NL→query), (3) optional second LLM call for Mermaid. That is **agent-like planning** without a full agent runtime.
-
-**Q23. How is hallucination reduced?**  
-**A:** Prompt instructs to use provided context; citations expose sources; no context → model should admit limits (prompt-dependent). Structured QG path executes real DB results rather than inventing numbers when pipeline runs.
-
-**Q24. How do you evaluate RAG quality?**  
-**A:** Today: manual QA, citations inspection, debug chunk counts. Interview upgrade path: golden question sets, recall@k, faithfulness/answer relevance metrics, user thumbs feedback.
-
-**Q25. Embeddings vs keyword search?**  
-**A:** Embeddings capture semantic similarity (“PTO” ≈ “leave policy”). Keyword/regex is fallback for exact tokens when vectors unavailable or low scores.
-
----
-
-### E. Query Genius / Structured AI
-
-**Q26. How does NL → Mongo work safely?**  
-**A:** LLM proposes pipeline/filter JSON; server parses and runs against **namespaced** collections; schema/PK guards on update/delete; inserts validated against inferred schema.
-
-**Q27. Why not let the LLM run arbitrary Mongo?**  
-**A:** Injection / destructive risk. Constrain to aggregation/filter shapes, company-prefixed collections, and validated fields.
-
-**Q28. Descriptive vs diagnostic vs predictive vs prescriptive?**  
-**A:** Prompt templates steer the LLM toward different analytical intents (what happened / why / what might happen / what to do), each returning a pipeline + insight + chart suggestion.
-
-**Q29. Does predictive analytics train ML models?**  
-**A:** In the **Next production path**, “predictive” is primarily LLM-guided aggregation/insight (not a trained ARIMA service). Legacy Streamlit prototype had richer classic ML tabs — not wired here.
-
----
-
-### F. Voice / Real-time
-
-**Q30. Why Web Speech API instead of Whisper + TTS APIs?**  
-**A:** Zero audio upload cost, low latency for pilot, runs in browser. Trade-offs: Chrome-centric, needs HTTPS, weaker offline/privacy controls, accent variance.
-
-**Q31. How do you handle continuous listening?**  
-**A:** `continuous = true`, restart on `onend` when still in-call and not speaking; silence timeout submits utterance.
-
-**Q32. Echo / feedback loop problem?**  
-**A:** Mic must be off while TTS plays; otherwise the assistant hears itself and loops.
-
----
-
-### G. Scalability / Reliability / Security
-
-**Q33. Bottlenecks today?**  
-**A:** Loading many vectors into Node memory; LLM latency; single-region Mongo; no queue for ingest; browser STT limits.
-
-**Q34. How would you scale RAG?**  
-**A:** Atlas Vector Search or dedicated vector DB; async ingest workers; cache hot embeddings; hybrid BM25+vector; rerankers; CDN for static UI.
-
-**Q35. LLM reliability?**  
-**A:** Cascading providers (Ollama → multiple Groq keys). Timeouts on local calls. Feature still works with text fallback if embeddings die.
-
-**Q36. Security checklist?**  
-**A:** Tenant isolation, bcrypt, email verify, admin gates, guest feature flags, rate limits, no secrets in client except `NEXT_PUBLIC_*`, validate guest tokens server-side, HTTPS for mic.
-
-**Q37. Prompt injection risk?**  
-**A:** User text and retrieved docs can contain instructions. Mitigations: system prompt priority, don’t execute tools from user text blindly, constrain QG to schema, sanitize outputs for XSS in markdown rendering.
-
----
-
-### H. Behavioral / “Explain your project” scripts
-
-**Q38. Walk me through the architecture in 60 seconds.**  
-**A:** “Agento is a multi-tenant Next.js SaaS. Admins upload docs; we chunk and embed into Mongo. Employees ask questions via chat or browser voice; the API retrieves top similar chunks, calls Ollama or Groq, and returns cited answers. Separately, Query Genius lets users upload CSVs and ask analytical questions — the LLM writes Mongo aggregations we execute and chart. Auth is NextAuth JWT; guests use shareable tokens. Usage is metered per plan.”
-
-**Q39. What was the hardest bug you fixed?**  
-**A:** Voice feedback loop — system audio re-entering STT — fixed by hard-muting recognition while TTS speaks and ignoring aborted recognition errors; also fixing stale React state in `onend` with refs.
-
-**Q40. What would you rebuild with more time?**  
-**A:** Real vector index, streaming LLM responses, Whisper/TTS cloud option, Stripe billing, stronger RAG evaluation, background ingest jobs, and consolidating legacy `/chat` + `/voice-call` into `/chat-voice` only.
-
----
-
-### I. Quick-fire definitions (say these cleanly)
-
-| Term | One-liner |
-|---|---|
-| **RAG** | Retrieve relevant docs, then generate an answer grounded in them |
-| **Embedding** | Dense vector representing semantic meaning of text |
-| **Cosine similarity** | Angle-based similarity between two vectors (1 = same direction) |
-| **Chunking** | Splitting long docs into retrieval-sized pieces |
-| **Hallucination** | Model invents facts not in context |
-| **BFF** | Backend-for-frontend: API tailored to the UI |
-| **Multi-tenancy** | One app instance serving isolated customers |
-| **JWT session** | Signed token carrying auth claims |
-| **NL2Query** | Natural language mapped to database queries |
-| **TTS / STT** | Text-to-speech / speech-to-text |
-| **Fallback chain** | Try local provider, then cloud providers in order |
-| **Citation** | Source filenames/categories shown with the answer |
-
----
-
-## 20. Known Caveats / Honest Trade-offs
-
-1. **Package name** in npm is `synopsee`; product branding is **Agento**.  
-2. README model names may differ slightly from `lib/llm.ts` defaults — trust the code for runtime.  
-3. **Vector search is app-side**, not Atlas Vector Search — fine for pilot, not huge corpora.  
-4. **`queryGenius/query.py` is not production.**  
-5. Guest usage tracking differs from logged-in `User` counters (link-level `guestCallCount`).  
-6. Voice depends on **browser Web Speech** quality and permissions.  
-7. Monetization is **manual UPI + admin approval**, not an automated payment gateway.  
-8. Most pages are CSR — SEO is mainly for the marketing landing page.
-
----
-
-## Appendix A — Key `lib` modules
-
-| File | Responsibility |
-|---|---|
-| `lib/db.ts` | Cached mongoose connections (main + admin) |
-| `lib/llm.ts` | `callLLM`, `getEmbedding` fallbacks |
-| `lib/guestAuth.ts` | Resolve/validate guest tokens; increment guest calls |
-| `lib/rateLimit.ts` | Plan limits; increment/check usage |
-| `lib/email.ts` | Nodemailer templates |
-| `lib/token.ts` | Secure token generation helpers |
-| `lib/utils.ts` | `cn()` className helper |
-
----
-
-## Appendix B — Suggested interview demo script
-
-1. Signup/login as admin → show dashboard usage.  
-2. Upload a PDF in Ingest → show category.  
-3. Ask a chat question → show citation.  
-4. Switch to voice → ask same topic → short spoken answer; show mic mutes while speaking.  
-5. Query Genius: upload CSV → LookUp chart → one analytics question.  
-6. Admin: enable guest link with chat+voice → open guest URL / iframe.
-
----
-
-*Generated for the Agento repository as a living architecture + interview guide. Update this file when APIs, models, or RAG strategy change.*
+*Last updated: v0.3 — Research Suite (Notebook LLM · Human Writer · AI Research Summary · AI Coding Assistant)*

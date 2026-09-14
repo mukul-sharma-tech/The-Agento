@@ -1,7 +1,7 @@
 /**
- * GET  — fetch the user's writing profile (samples + cached analysis)
- * POST — upload a new writing sample (persists to DB)
- * DELETE ?sampleId=xxx — remove a sample
+ * GET  - fetch the user's writing profile (samples + cached analysis)
+ * POST - upload a new writing sample (persists to DB)
+ * DELETE ?sampleId=xxx - remove a sample
  */
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
@@ -52,7 +52,7 @@ Style Analysis:`;
     profile.analysedAt = new Date();
     await profile.save();
   } catch {
-    // non-fatal — keep old analysis
+    // non-fatal - keep old analysis
   }
 }
 

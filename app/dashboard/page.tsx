@@ -270,7 +270,7 @@ export default function DashboardPage() {
             <FeatureCard
               icon={<FlaskConical className="w-6 h-6 text-white" />}
               title="Research Suite"
-              desc="Notebook LLM, Human Writer, AI Research Paper generator, and AI Coding Assistant — all in one place."
+              desc="Notebook LLM, Human Writer, AI Research Paper generator, and AI Coding Assistant - all in one place."
               gradient="from-amber-500 to-orange-500"
               shadowColor="rgba(245,158,11,0.25)"
               onClick={() => router.push("/research")}

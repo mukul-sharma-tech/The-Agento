@@ -4,7 +4,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectDB } from "@/lib/db";
 import HumanWriterSession from "@/models/HumanWriterSession";
 
-// GET — list all sessions
+// GET - list all sessions
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
@@ -26,7 +26,7 @@ export async function GET() {
   }
 }
 
-// POST — create a new session
+// POST - create a new session
 export async function POST() {
   try {
     const session = await getServerSession(authOptions);

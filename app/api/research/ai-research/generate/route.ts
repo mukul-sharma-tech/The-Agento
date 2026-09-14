@@ -11,7 +11,7 @@ Use proper academic headings (## for main sections, ### for subsections). Write 
   ieee: `Format as IEEE LaTeX-compatible paper outline. Include:
 \\documentclass{IEEEtran} hint at top as comment, then:
 # [PAPER TITLE]
-**Abstract** — IEEE two-column abstract format
+**Abstract** - IEEE two-column abstract format
 ## I. Introduction
 ## II. Related Work  
 ## III. System Design / Methodology
@@ -32,7 +32,7 @@ Keep total under 800 words. Dense academic style.`,
 
   acm: `Format as ACM SIG Proceedings paper. Include:
 # [Title: Subtitle]
-*[Author Name] — [Institution]*
+*[Author Name] - [Institution]*
 **ABSTRACT** (CCS Concepts included)
 ## 1. INTRODUCTION
 ## 2. BACKGROUND

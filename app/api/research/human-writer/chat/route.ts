@@ -35,7 +35,7 @@ export async function POST(req: Request) {
       ? `You have access to the user's writing samples and style analysis below.
 Your ONLY job is to respond to the user's request by writing content that PERFECTLY mirrors their writing style.
 Match their sentence length, vocabulary, tone, paragraph structure, punctuation habits, transitions, and personality.
-Never write in a generic AI style — always sound exactly like the user.
+Never write in a generic AI style - always sound exactly like the user.
 
 ${styleAnalysis ? `STYLE ANALYSIS:\n${styleAnalysis}\n\n` : ""}WRITING SAMPLES (study these carefully):
 ${styleRef}`

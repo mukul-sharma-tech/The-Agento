@@ -6,7 +6,7 @@ import HumanWriterSession from "@/models/HumanWriterSession";
 
 type Params = { params: Promise<{ id: string }> };
 
-// GET — load a session
+// GET - load a session
 export async function GET(req: Request, { params }: Params) {
   try {
     const session = await getServerSession(authOptions);
@@ -29,7 +29,7 @@ export async function GET(req: Request, { params }: Params) {
   }
 }
 
-// PATCH — append messages
+// PATCH - append messages
 export async function PATCH(req: Request, { params }: Params) {
   try {
     const session = await getServerSession(authOptions);

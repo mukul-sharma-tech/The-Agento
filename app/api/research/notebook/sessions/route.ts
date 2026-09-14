@@ -4,7 +4,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectDB } from "@/lib/db";
 import NotebookSession from "@/models/NotebookSession";
 
-// GET — list all notebooks
+// GET - list all notebooks
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
@@ -26,7 +26,7 @@ export async function GET() {
   }
 }
 
-// POST — create a new notebook
+// POST - create a new notebook
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);

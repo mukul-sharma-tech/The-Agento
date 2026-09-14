@@ -35,7 +35,7 @@ export async function POST(req: Request) {
 
     const prompt = `You are a professional content writer. Your task is to write content that EXACTLY matches the writing style shown in the sample below.
 
-WRITING STYLE SAMPLES (study this carefully — match the sentence structure, vocabulary, tone, and patterns):
+WRITING STYLE SAMPLES (study this carefully - match the sentence structure, vocabulary, tone, and patterns):
 ${styleReference}
 
 ---
@@ -47,7 +47,7 @@ Now write the following in the SAME STYLE as the samples above:
 - Target word count: approximately ${wordCount} words
 ${extraInstructions ? `- Additional instructions: ${extraInstructions}` : ""}
 
-CRITICAL: Mirror the style exactly — if the samples use short punchy sentences, do that. If they use complex academic language, do that. Match paragraph length, transition patterns, and vocabulary level.
+CRITICAL: Mirror the style exactly - if the samples use short punchy sentences, do that. If they use complex academic language, do that. Match paragraph length, transition patterns, and vocabulary level.
 
 Write the content now (do NOT add explanations before or after, just the content itself):`;
 

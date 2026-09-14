@@ -45,7 +45,7 @@ function renderInline(text: string, isUser: boolean): React.ReactNode[] {
   });
 }
 
-// ─── Markdown renderer — mirrors chat page exactly ────────────────────────────
+// ─── Markdown renderer - mirrors chat page exactly ────────────────────────────
 function MarkdownContent({ content, isUser = false }: { content: string; isUser?: boolean }) {
   const textColor  = isUser ? "text-white"      : "text-slate-700";
   const headColor  = isUser ? "text-white"      : "text-slate-800";
@@ -274,7 +274,7 @@ export default function NotebookChatPage() {
   return (
     <main className="relative h-screen overflow-hidden flex flex-col bg-slate-100">
 
-      {/* ── Backgrounds — exact match to chat page ── */}
+      {/* ── Backgrounds - exact match to chat page ── */}
       <div className="absolute inset-0 bg-gradient-to-br from-slate-200 via-white to-blue-100 pointer-events-none" />
       <div className="absolute -top-56 -left-56 w-[650px] h-[650px] rounded-full blur-[120px] bg-blue-300/40 pointer-events-none" />
       <div className="absolute top-1/4 -right-64 w-[700px] h-[700px] rounded-full blur-[140px] bg-indigo-300/35 pointer-events-none" />

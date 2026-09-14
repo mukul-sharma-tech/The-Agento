@@ -364,7 +364,7 @@ export default function GuestPage() {
   const hasChat = guestCtx?.features.includes("chat");
   const hasVoice = guestCtx?.features.includes("voice");
 
-  // ── CHAT TAB — exact copy of app/chat/page.tsx JSX ─────────────────────────
+  // ── CHAT TAB - exact copy of app/chat/page.tsx JSX ─────────────────────────
   const chatTab = (
     <main className="relative min-h-screen overflow-hidden flex flex-col bg-slate-100 dark:bg-[#0b1220]">
       <div className="absolute inset-0 bg-gradient-to-br from-slate-200 via-white to-blue-100 dark:from-slate-900 dark:via-[#0b1220] dark:to-blue-900/40" />
@@ -483,7 +483,7 @@ export default function GuestPage() {
     </main>
   );
 
-  // ── VOICE TAB — exact copy of app/voice-call/page.tsx JSX ──────────────────
+  // ── VOICE TAB - exact copy of app/voice-call/page.tsx JSX ──────────────────
   const voiceTab = (
     <main className="h-screen flex flex-col bg-gray-900 overflow-hidden">
       {/* Header */}

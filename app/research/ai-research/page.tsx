@@ -50,7 +50,7 @@ const SECTIONS = [
     step: "03",
     label: "Your Approach & Methodology",
     hint: "How did you do it? What methods, tools, datasets, and experiments did you use?",
-    placeholder: `Explain your methodology in detail — experimental setup, datasets, algorithms, tools, model architecture, evaluation metrics, and how you validated your approach...`,
+    placeholder: `Explain your methodology in detail - experimental setup, datasets, algorithms, tools, model architecture, evaluation metrics, and how you validated your approach...`,
     icon: <Cpu className="w-4 h-4" />,
     color: "text-cyan-600",
     bg: "bg-cyan-50",
@@ -642,7 +642,7 @@ export default function AIResearchPage() {
       <div className="relative z-10 flex flex-1 overflow-hidden">
 
         {/* ══════════════════════════════════════
-            LEFT — Input Editor
+            LEFT - Input Editor
         ══════════════════════════════════════ */}
         <div className="w-[400px] flex-shrink-0 flex flex-col border-r border-slate-200/70 bg-white/60 overflow-hidden">
 
@@ -800,7 +800,7 @@ export default function AIResearchPage() {
                 {agentStatus === "complete" && (
                   <div className="space-y-2">
                     <div className="flex items-center gap-1.5 text-[11px] text-green-700 font-medium">
-                      <Sparkles className="w-3.5 h-3.5" /> Paper generated — export from the right panel
+                      <Sparkles className="w-3.5 h-3.5" /> Paper generated - export from the right panel
                     </div>
                     <button onClick={reset} className="flex items-center justify-center gap-2 w-full py-2 rounded-xl border border-slate-300 text-slate-600 text-xs font-medium hover:bg-slate-50 transition-all">
                       <RefreshCw className="w-3.5 h-3.5" /> Start Over
@@ -813,7 +813,7 @@ export default function AIResearchPage() {
         </div>
 
         {/* ══════════════════════════════════════
-            HISTORY SIDEBAR — collapsible
+            HISTORY SIDEBAR - collapsible
         ══════════════════════════════════════ */}
         <div className={`flex-shrink-0 flex flex-col border-r border-slate-200/70 bg-white/50 transition-all duration-300 ${historyOpen ? "w-56" : "w-10"}`}>
 
@@ -877,7 +877,7 @@ export default function AIResearchPage() {
         </div>
 
         {/* ══════════════════════════════════════
-            RIGHT — Live Paper Preview
+            RIGHT - Live Paper Preview
         ══════════════════════════════════════ */}
         <div className="flex-1 flex flex-col overflow-hidden bg-slate-100/50">
 
@@ -985,7 +985,7 @@ export default function AIResearchPage() {
               </div>
             )}
 
-            {/* Rendered output — academic paper style */}
+            {/* Rendered output - academic paper style */}
             {output && (
               <div className="max-w-2xl mx-auto my-8 px-6">
                 {/* Paper sheet */}

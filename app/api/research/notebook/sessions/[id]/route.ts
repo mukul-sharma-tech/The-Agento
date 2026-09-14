@@ -6,7 +6,7 @@ import NotebookSession from "@/models/NotebookSession";
 
 type Params = { params: Promise<{ id: string }> };
 
-// GET — load a single notebook (full data)
+// GET - load a single notebook (full data)
 export async function GET(req: Request, { params }: Params) {
   try {
     const session = await getServerSession(authOptions);
@@ -29,7 +29,7 @@ export async function GET(req: Request, { params }: Params) {
   }
 }
 
-// PATCH — update title/description, append doc, or append a message pair
+// PATCH - update title/description, append doc, or append a message pair
 export async function PATCH(req: Request, { params }: Params) {
   try {
     const session = await getServerSession(authOptions);
@@ -89,7 +89,7 @@ export async function PATCH(req: Request, { params }: Params) {
   }
 }
 
-// DELETE — remove a notebook
+// DELETE - remove a notebook
 export async function DELETE(req: Request, { params }: Params) {
   try {
     const session = await getServerSession(authOptions);

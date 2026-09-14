@@ -35,7 +35,7 @@ const TOOLS = [
   {
     id: "ai-research",
     title: "AI Research Summary",
-    desc: "Feed your research across 4 nodes — idea, prior work, methodology, findings — and watch agents synthesize a full paper.",
+    desc: "Feed your research across 4 nodes - idea, prior work, methodology, findings - and watch agents synthesize a full paper.",
     icon: <FlaskConical className="w-7 h-7 text-white" />,
     gradient: "from-amber-500 to-orange-500",
     shadow: "rgba(245,158,11,0.3)",
@@ -117,7 +117,7 @@ export default function ResearchHubPage() {
               </div>
               <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">Research Hub</h1>
               <p className="text-indigo-100 text-sm md:text-base max-w-xl">
-                From notebook-style RAG chats to AI-generated research papers with live photon animations — your full research toolkit in one place.
+                From notebook-style RAG chats to AI-generated research papers with live photon animations - your full research toolkit in one place.
               </p>
             </div>
           </div>
@@ -181,7 +181,7 @@ export default function ResearchHubPage() {
 
         {/* Footer note */}
         <p className="text-center text-xs text-slate-400 mt-12">
-          Research Suite — powered by Agento AI · All tools are session-isolated and private
+          Research Suite - powered by Agento AI · All tools are session-isolated and private
         </p>
       </div>
     </main>

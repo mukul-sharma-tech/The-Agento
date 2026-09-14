@@ -4,7 +4,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectDB } from "@/lib/db";
 import ResearchSession from "@/models/ResearchSession";
 
-// GET — list all research sessions for the user
+// GET - list all research sessions for the user
 export async function GET(req: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -26,7 +26,7 @@ export async function GET(req: Request) {
   }
 }
 
-// POST — save a completed research session
+// POST - save a completed research session
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);

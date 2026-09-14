@@ -5,7 +5,7 @@ import { connectDB } from "@/lib/db";
 import PublicLink from "@/models/PublicLink";
 import crypto from "crypto";
 
-// GET — fetch the current public link for the admin's company
+// GET - fetch the current public link for the admin's company
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
@@ -22,7 +22,7 @@ export async function GET() {
   }
 }
 
-// POST — generate a new public link (or return existing)
+// POST - generate a new public link (or return existing)
 export async function POST() {
   try {
     const session = await getServerSession(authOptions);
@@ -55,7 +55,7 @@ export async function POST() {
   }
 }
 
-// PATCH — toggle enabled / regenerate token / update features
+// PATCH - toggle enabled / regenerate token / update features
 export async function PATCH(req: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -87,7 +87,7 @@ export async function PATCH(req: Request) {
   }
 }
 
-// DELETE — remove the public link entirely
+// DELETE - remove the public link entirely
 export async function DELETE() {
   try {
     const session = await getServerSession(authOptions);

@@ -458,7 +458,7 @@ export default function HumanWriterPage() {
                 </h2>
                 <p className="text-slate-500 max-w-md text-sm">
                   {samples.length > 0
-                    ? `I've learned your writing style from ${samples.length} sample${samples.length > 1 ? "s" : ""}. Ask me to write anything — emails, posts, essays — and I'll match your exact voice.`
+                    ? `I've learned your writing style from ${samples.length} sample${samples.length > 1 ? "s" : ""}. Ask me to write anything - emails, posts, essays - and I'll match your exact voice.`
                     : "Upload your writing samples in the left panel. I'll learn your style and write content that sounds exactly like you."}
                 </p>
                 {samples.length > 0 && (
@@ -537,7 +537,7 @@ export default function HumanWriterPage() {
               <input
                 value={input}
                 onChange={e => setInput(e.target.value)}
-                placeholder={samples.length > 0 ? "Ask me to write anything — in your voice..." : "Ask me anything..."}
+                placeholder={samples.length > 0 ? "Ask me to write anything - in your voice..." : "Ask me anything..."}
                 disabled={loading}
                 className="flex-1 h-12 px-4 rounded-xl bg-white/50 border border-slate-200/50 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent disabled:opacity-50 transition-all"
               />

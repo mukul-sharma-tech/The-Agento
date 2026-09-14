@@ -142,7 +142,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Message is required" }, { status: 400 });
     }
 
-    // ── Rate limit check (skip for guests — they share company quota) ─────────
+    // ── Rate limit check (skip for guests - they share company quota) ─────────
     if (session?.user) {
       const limit = await checkAndIncrementAILimit(session.user.email!, isVoiceMode ? "voice" : "chat");
       if (!limit.allowed) {
