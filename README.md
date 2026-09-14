@@ -31,10 +31,11 @@ Agento is a multi-tenant AI platform that lets companies chat with their documen
 #### AI Chat & Voice  `/chat-voice`
 Unified chat and voice interface on a single page. Both modes share the same RAG pipeline (vector similarity search over company documents) and session history. Voice uses the browser's Web Speech API; responses are trimmed for spoken delivery.
 
-- Collapsible session sidebar with full chat history
+- Collapsible session sidebar with full chat history — fixed position, only the message list scrolls
 - Mermaid flowchart rendering for process questions
 - Source citations on every answer (linked back to filename + category)
 - Mic auto-mutes while the AI is speaking
+- **Image OCR upload** — attach any PNG/JPEG/WebP image; Tesseract.js extracts the text server-side and sends it to the RAG pipeline automatically. Add an optional typed follow-up question on top.
 
 #### Document Ingestion  `/ingest-doc`  *(Admin only)*
 Upload PDF, TXT, CSV, MD, or JSON files. The pipeline extracts text, cleans it, chunks it into overlapping windows (~800 chars, 150 overlap), generates embeddings via Ollama or HuggingFace, and stores each chunk as a `VectorChunk` document tagged with `embeddingModel`.
@@ -189,6 +190,7 @@ A local-first VS Code / Cursor-style code editor running entirely in the browser
 | Icons | Lucide React | ^0.562.0 |
 | Class utilities | clsx + tailwind-merge + class-variance-authority | latest |
 | Password hashing | bcryptjs | ^3.0.3 |
+| OCR | tesseract.js | latest |
 
 ---
 
@@ -273,6 +275,7 @@ app/
     documents/             # Document upload + embedding pipeline
     query-genius/          # Collections, schema, query, analytics, lookup
     guest/validate/        # Guest token validation
+    ocr/                   # Tesseract.js OCR endpoint (image → text)
     research/
       notebook/            # Notebook upload (in-memory RAG) + chat + session CRUD
       human-writer/        # Writing profile (persistent), sessions, chat

@@ -75,7 +75,7 @@ At a capability level:
 
 | Capability | What it does |
 |---|---|
-| **AI Chat + Voice** | RAG over uploaded company documents; voice uses browser STT/TTS |
+| **AI Chat + Voice** | RAG over uploaded company documents; voice uses browser STT/TTS; image OCR via Tesseract.js |
 | **Document Ingest** | PDF/TXT/CSV/MD/JSON → chunk → embed → `vector_store` |
 | **Query Genius** | NL CRUD + 4-mode analytics + LookUp charts over company CSV data |
 | **Public Guest Link** | Embeddable iframe chat/voice for external users (no login) |
@@ -113,6 +113,7 @@ At a capability level:
 | UI Primitives | Radix UI (Label, Slot) | ^2.x |
 | Class utilities | clsx + tailwind-merge + class-variance-authority | latest |
 | Password hashing | bcryptjs | ^3.0.3 |
+| OCR | tesseract.js | latest |
 
 **Not used (important for interviews):** LangChain, LlamaIndex, OpenAI SDK, Stripe webhooks, WebRTC audio server, dedicated vector DB (Pinecone/Weaviate).
 
@@ -175,6 +176,7 @@ The-Agento/
 │   │   ├── chat/                    # RAG chat + session CRUD (+ guest support)
 │   │   ├── documents/               # Upload + embedding pipeline + debug
 │   │   ├── guest/                   # Token validate
+│   │   ├── ocr/                     # Tesseract.js OCR — image buffer → extracted text
 │   │   ├── query-genius/            # Collections, schema, query, upload, analytics, lookup
 │   │   └── research/
 │   │       ├── notebook/
@@ -402,6 +404,14 @@ Guest requests reuse the same `/api/chat` endpoint. The identity adapter (`resol
 | `/api/documents/upload` | GET/POST | Admin | List docs / upload + ingest pipeline |
 | `/api/documents/debug` | GET | Session | Chunk/doc counts |
 
+### OCR
+
+| Endpoint | Methods | Auth | Purpose |
+|---|---|---|---|
+| `/api/ocr` | POST | Session | Accept image (PNG/JPEG/WebP/BMP, ≤5 MB) → Tesseract.js OCR → return `{ text }` |
+
+The OCR endpoint is called by the chat input's image attach button. Extracted text is combined with the user's typed message and sent to `/api/chat` as one payload — no special branch in the RAG pipeline.
+
 ### Query Genius
 
 | Endpoint | Methods | Auth | Purpose |
@@ -461,6 +471,8 @@ User question
   → Filter: embeddingModel === queryModel  (dimension isolation)
   → cosine similarity all chunks → filter score > 0.2 → sort → Top-K = 5
   → If no results: $regex fallback on textContent (limit 10)
+        Note: user message is regex-escaped before use in $regex to prevent
+        MongoServerError on special characters like ( ) [ ] . * + ? etc.
   → Build context: top chunks joined with \n\n---\n\n
   → Build prompt: system + context + last 6 history turns + user message
   → callLLM(prompt)
@@ -918,6 +930,9 @@ All email via Nodemailer + Gmail SMTP (`EMAIL_*` env vars).
 | Canvas particle animation | ResearchOrb photon system |
 | Lazy tree loading | Coding file explorer (expand on demand) |
 | Adapter pattern for LLM | `lib/llm.ts` wraps all providers |
+| Server-side OCR | Tesseract.js in `/api/ocr`, image buffer processed in Node |
+| Regex input sanitisation | Escape special chars before MongoDB `$regex` |
+| Fixed-height chat layout | `h-screen overflow-hidden` + `flex-1 min-h-0` on inner rows |
 
 ### 18.2 Key architecture decisions with rationale
 
@@ -1115,6 +1130,7 @@ User asks AI "What does this function do?"
 | Embedding cap | Top-100 candidates loaded per query | In-memory cosine on small corpus |
 | Coding AI context | Only open tabs sent | Browser can't push all files to server |
 | Word export | Browser-side docx; no server-side rendering | Simpler architecture, same output quality |
+| OCR accuracy | Tesseract.js quality varies by image | Printed text works well; handwriting is unreliable |
 | Dual DB | Admin DB separate connection | Billing/ops isolation without full microservice |
 
 ---
