@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import {
   Loader2, Send, Bot, User, ArrowLeft, Zap, X, FileImage, FileText,
   PlusCircle, MessageSquare, Trash2, Clock, PanelLeftClose, PanelLeftOpen,
-  Volume2, VolumeX, Phone, PhoneOff, Plus, Mic,
+  Volume2, VolumeX, Phone, PhoneOff, Plus, Mic, ImageIcon,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -135,6 +135,12 @@ export default function ChatVoicePage() {
   const [deletingChatId, setDeletingChatId] = useState<string | null>(null);
   const [chatSidebarOpen, setChatSidebarOpen] = useState(true);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  // ── OCR state ───────────────────────────────────────────────────────────────
+  const [ocrText, setOcrText] = useState("");
+  const [ocrFileName, setOcrFileName] = useState("");
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrError, setOcrError] = useState("");
+  const imgInputRef = useRef<HTMLInputElement>(null);
 
   // ── Voice state ─────────────────────────────────────────────────────────────
   const [voiceSessions, setVoiceSessions] = useState<SessionMeta[]>([]);
@@ -222,20 +228,36 @@ export default function ChatVoicePage() {
     setDeletingChatId(null);
   };
   const handleChatSubmit = async (e: React.FormEvent) => {
-    e.preventDefault(); if (!input.trim()||chatLoading) return;
+    e.preventDefault(); if ((!input.trim() && !ocrText) || chatLoading) return;
     let sid = chatSessionId;
     if (!sid) {
       const r = await fetch("/api/chat/sessions", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({mode:"chat"}) });
       if (!r.ok) return; const d = await r.json(); sid = d.session._id; setChatSessionId(sid); setChatSessions(p=>[d.session,...p]);
     }
-    const msg = input.trim(); setInput(""); setMessages(p=>[...p,{role:"user",content:msg}]); setChatLoading(true); setChatError("");
+    // Combine OCR extracted text with typed input
+    const combinedMessage = ocrText
+      ? `${ocrText}${input.trim() ? `\n\n${input.trim()}` : ""}`
+      : input.trim();
+
+    // Clear OCR state before sending
+    const attachedFile = ocrFileName;
+    setOcrText(""); setOcrFileName(""); setOcrError("");
+
+    setInput("");
+    setMessages(p=>[...p,{
+      role:"user",
+      content: attachedFile
+        ? `📎 *${attachedFile}*\n\n${combinedMessage}`
+        : combinedMessage,
+    }]);
+    setChatLoading(true); setChatError("");
     try {
-      const r = await fetch("/api/chat", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({message:msg,history:messages}) });
+      const r = await fetch("/api/chat", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({message:combinedMessage,history:messages}) });
       const data = await r.json();
       if (!r.ok) { setChatError(data.message||"Failed"); }
       else {
         setMessages(p=>[...p,{role:"assistant",content:data.message,mermaidCode:data.mermaidCode,citations:data.citations||[]}]);
-        await fetch(`/api/chat/sessions/${sid}`, { method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({userMessage:msg,assistantMessage:data.message,mermaidCode:data.mermaidCode,citations:data.citations}) });
+        await fetch(`/api/chat/sessions/${sid}`, { method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({userMessage:combinedMessage,assistantMessage:data.message,mermaidCode:data.mermaidCode,citations:data.citations}) });
         fetchChatSessions();
       }
     } catch { setChatError("Something went wrong. Please try again."); }
@@ -334,11 +356,39 @@ export default function ChatVoicePage() {
   };
   const clearVoiceChat = () => { setVoiceMessages([]); setVoiceInput(""); setVoiceSessionId(null); };
 
+  // ── OCR handler ─────────────────────────────────────────────────────────────
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    // Reset input so same file can be re-selected
+    e.target.value = "";
+    setOcrLoading(true);
+    setOcrError("");
+    setOcrText("");
+    setOcrFileName("");
+    try {
+      const fd = new FormData();
+      fd.append("image", file);
+      const res = await fetch("/api/ocr", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) {
+        setOcrError(data.error || "OCR failed");
+      } else {
+        setOcrText(data.text);
+        setOcrFileName(file.name);
+      }
+    } catch {
+      setOcrError("Failed to process image");
+    } finally {
+      setOcrLoading(false);
+    }
+  };
+
   if (status === "loading") return <main className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-[#0b1220]"><Loader2 className="w-8 h-8 animate-spin text-blue-500" /></main>;
 
   // ── CHAT TAB ─────────────────────────────────────────────────────────────────
   if (activeTab === "chat") return (
-    <main className="relative min-h-screen overflow-hidden flex flex-col bg-slate-100 dark:bg-[#0b1220]">
+    <main className="relative h-screen overflow-hidden flex flex-col bg-slate-100 dark:bg-[#0b1220]">
       <div className="absolute inset-0 bg-gradient-to-br from-slate-200 via-white to-blue-100 dark:from-slate-900 dark:via-[#0b1220] dark:to-blue-900/40" />
       <div className="absolute -top-56 -left-56 w-[650px] h-[650px] rounded-full blur-[120px] bg-blue-300/40 dark:bg-blue-700/20" />
       <div className="absolute top-1/4 -right-64 w-[700px] h-[700px] rounded-full blur-[140px] bg-indigo-300/35 dark:bg-indigo-800/25" />
@@ -366,10 +416,10 @@ export default function ChatVoicePage() {
         </div>
       </div>
 
-      <div className="relative z-10 flex flex-1 overflow-hidden">
+      <div className="relative z-10 flex flex-1 overflow-hidden min-h-0">
         {chatSidebarOpen && <div className="absolute inset-0 z-10 bg-slate-900/20 dark:bg-black/40 backdrop-blur-sm md:hidden" onClick={() => setChatSidebarOpen(false)} />}
         <aside className={`absolute md:static z-20 h-full flex-shrink-0 flex flex-col border-r border-slate-200/60 dark:border-slate-700/60 bg-white drop-shadow-xl md:drop-shadow-none md:bg-white/40 dark:bg-slate-900 md:dark:bg-slate-900/40 backdrop-blur-xl overflow-hidden transition-all duration-300 ${chatSidebarOpen ? "w-64" : "w-0 border-r-0"}`}>
-          <div className="p-3 border-b border-slate-200/60 dark:border-slate-700/60">
+          <div className="flex-shrink-0 p-3 border-b border-slate-200/60 dark:border-slate-700/60">
             <Button onClick={createNewChat} className="w-full h-9 bg-slate-800 text-white dark:bg-slate-700/60 dark:text-slate-100 border border-black/10 dark:border-white/10 hover:bg-slate-700 text-sm">
               <PlusCircle className="w-4 h-4 mr-2" /> New Chat
             </Button>
@@ -394,7 +444,7 @@ export default function ChatVoicePage() {
           </div>
         </aside>
 
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col overflow-hidden min-h-0">
           {showFlowchart && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
               <div className="relative w-full max-w-4xl max-h-[80vh] bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden">
@@ -440,12 +490,66 @@ export default function ChatVoicePage() {
             {chatError && <div className="flex justify-center"><div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg px-4 py-2 text-sm">{chatError}</div></div>}
           </div>
           <div className="px-4 py-4 border-t border-slate-200/50 dark:border-slate-700/50 bg-white/30 dark:bg-slate-900/30 backdrop-blur-sm">
-            <form onSubmit={handleChatSubmit} className="max-w-4xl mx-auto flex gap-2">
-              <Input value={input} onChange={e => setInput(e.target.value)} placeholder="Ask a question about your documents..." disabled={chatLoading} className="flex-1 h-12 bg-white/50 dark:bg-slate-800/50 border-slate-200/50 dark:border-slate-700/50" />
-              <Button type="submit" disabled={chatLoading || !input.trim()} className="h-12 px-6 bg-slate-800 text-white dark:bg-slate-700/60 dark:text-slate-100 border border-black/10 dark:border-white/10 hover:bg-slate-700 disabled:opacity-50">
-                {chatLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-              </Button>
-            </form>
+            <div className="max-w-4xl mx-auto space-y-2">
+              {/* OCR attachment preview */}
+              {(ocrFileName || ocrLoading || ocrError) && (
+                <div className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm ${
+                  ocrError
+                    ? "bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400"
+                    : ocrLoading
+                    ? "bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400"
+                    : "bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300"
+                }`}>
+                  {ocrLoading ? (
+                    <><Loader2 className="w-3.5 h-3.5 animate-spin flex-shrink-0" /><span className="text-xs">Extracting text from image...</span></>
+                  ) : ocrError ? (
+                    <><ImageIcon className="w-3.5 h-3.5 flex-shrink-0" /><span className="text-xs flex-1">{ocrError}</span><button onClick={() => setOcrError("")} className="ml-auto flex-shrink-0"><X className="w-3.5 h-3.5" /></button></>
+                  ) : (
+                    <><ImageIcon className="w-3.5 h-3.5 flex-shrink-0" /><span className="text-xs flex-1 truncate">📎 <strong>{ocrFileName}</strong> — {ocrText.split(/\s+/).filter(Boolean).length} words extracted</span><button onClick={() => { setOcrText(""); setOcrFileName(""); }} className="ml-auto flex-shrink-0 text-indigo-400 hover:text-red-500 transition-colors"><X className="w-3.5 h-3.5" /></button></>
+                  )}
+                </div>
+              )}
+
+              <form onSubmit={handleChatSubmit} className="flex gap-2">
+                {/* Hidden file input */}
+                <input
+                  ref={imgInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg,image/webp,image/bmp"
+                  className="hidden"
+                  onChange={handleImageUpload}
+                />
+                {/* Image attach button */}
+                <button
+                  type="button"
+                  onClick={() => imgInputRef.current?.click()}
+                  disabled={chatLoading || ocrLoading}
+                  title="Attach image (OCR)"
+                  className={`h-12 w-12 flex-shrink-0 flex items-center justify-center rounded-xl border transition-all ${
+                    ocrFileName
+                      ? "bg-indigo-100 dark:bg-indigo-900/40 border-indigo-300 dark:border-indigo-700 text-indigo-600 dark:text-indigo-400"
+                      : "bg-white/50 dark:bg-slate-800/50 border-slate-200/50 dark:border-slate-700/50 text-slate-500 dark:text-slate-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-600 dark:hover:text-indigo-400"
+                  } disabled:opacity-40`}
+                >
+                  {ocrLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
+                </button>
+
+                <Input
+                  value={input}
+                  onChange={e => setInput(e.target.value)}
+                  placeholder={ocrFileName ? "Add a question about the image (optional)..." : "Ask a question about your documents..."}
+                  disabled={chatLoading}
+                  className="flex-1 h-12 bg-white/50 dark:bg-slate-800/50 border-slate-200/50 dark:border-slate-700/50"
+                />
+                <Button
+                  type="submit"
+                  disabled={chatLoading || ocrLoading || (!input.trim() && !ocrText)}
+                  className="h-12 px-6 bg-slate-800 text-white dark:bg-slate-700/60 dark:text-slate-100 border border-black/10 dark:border-white/10 hover:bg-slate-700 disabled:opacity-50"
+                >
+                  {chatLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+                </Button>
+              </form>
+            </div>
           </div>
         </div>
       </div>

@@ -211,9 +211,11 @@ export async function POST(req: Request) {
     // If no vector results, try text search
     if (relevantChunks.length === 0) {
       console.log("No vector results, trying text search...");
+      // Escape special regex characters so arbitrary user input doesn't crash MongoDB $regex
+      const escapedMessage = message.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const textChunks = await VectorChunk.find({
         "metadata.company_id": companyId,
-        textContent: { $regex: message, $options: "i" },
+        textContent: { $regex: escapedMessage, $options: "i" },
       }).limit(10);
       sourceChunks = textChunks;
       relevantChunks = textChunks.map(c => c.textContent);
