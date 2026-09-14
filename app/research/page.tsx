@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useEffect } from "react";
 import {
-  BookOpen, PenTool, FlaskConical, Code2,
+  BookOpen, PenTool, FlaskConical, Code2, Presentation,
   ArrowRight, ArrowLeft, Sparkles, Zap,
 } from "lucide-react";
 import Image from "next/image";
@@ -20,6 +20,17 @@ const TOOLS = [
     href: "/research/notebook",
     badge: "RAG Chat",
     features: ["Document Upload", "Vector Search", "Citations", "Multi-doc"],
+  },
+  {
+    id: "presentation",
+    title: "AI Presentation Generator",
+    desc: "Transform any topic, notes, or uploaded documents into structured presentation decks. Live preview, inline edits & instant .pptx export.",
+    icon: <Presentation className="w-7 h-7 text-white" />,
+    gradient: "from-emerald-500 to-teal-600",
+    shadow: "rgba(16,185,129,0.3)",
+    href: "/research/presentation",
+    badge: "PPT Gen",
+    features: ["Custom Slide Count", "16:9 Live Preview", "Export .pptx", "Multiple Themes"],
   },
   {
     id: "human-writer",
@@ -113,11 +124,11 @@ export default function ResearchHubPage() {
             <div className="relative z-10 text-center md:text-left">
               <div className="flex items-center justify-center md:justify-start gap-2 mb-3">
                 <Sparkles className="w-4 h-4 text-indigo-200" />
-                <span className="text-indigo-200 text-sm font-medium">4 Powerful Research Tools</span>
+                <span className="text-indigo-200 text-sm font-medium">5 Powerful Research Tools</span>
               </div>
               <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">Research Hub</h1>
               <p className="text-indigo-100 text-sm md:text-base max-w-xl">
-                From notebook-style RAG chats to AI-generated research papers with live photon animations - your full research toolkit in one place.
+                From notebook-style RAG chats and AI presentation deck builders to automated research papers and coding assistants - your full toolkit in one place.
               </p>
             </div>
           </div>
