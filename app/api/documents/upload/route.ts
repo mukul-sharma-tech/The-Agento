@@ -78,6 +78,14 @@ async function getFileText(file: File): Promise<string> {
     const { text } = await extractText(pdf, { mergePages: true });
     return Array.isArray(text) ? text.join(" ") : text;
   }
+  
+  if (name.endsWith(".jpg") || name.endsWith(".jpeg") || name.endsWith(".png")) {
+    const { extractTextFromImage } = await import("@/lib/vision");
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const base64Image = buffer.toString('base64');
+    const text = await extractTextFromImage(base64Image);
+    return text;
+  }
 
   return await file.text();
 }
@@ -115,7 +123,7 @@ export async function POST(req: Request) {
     if (!category || !CATEGORIES.includes(category)) return NextResponse.json({ message: "Invalid category" }, { status: 400 });
 
     const name = file.name.toLowerCase();
-    const valid = [".txt", ".md", ".pdf", ".csv", ".json"];
+    const valid = [".txt", ".md", ".pdf", ".csv", ".json", ".jpg", ".jpeg", ".png"];
     if (!valid.some(ext => name.endsWith(ext))) return NextResponse.json({ message: "Invalid type" }, { status: 400 });
 
     await connectDB();
