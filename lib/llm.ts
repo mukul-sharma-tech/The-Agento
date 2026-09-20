@@ -7,7 +7,9 @@
 
 async function _callOllama(prompt: string, timeoutMs = 60000): Promise<string> {
   const url = process.env.OLLAMA_URL || "http://localhost:11434";
-  const model = process.env.OLLAMA_MODEL || "gpt-oss:120b-cloud";
+  // const model = process.env.OLLAMA_MODEL || "gpt-oss:20b-cloud";
+  const model = process.env.OLLAMA_MODEL || "llama3.2:1b";
+
 
   const res = await fetch(`${url}/api/generate`, {
     method: "POST",
@@ -31,7 +33,7 @@ async function _callGroq(apiKey: string, prompt: string): Promise<string> {
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: "llama-3.3-70b-versatile",
+      model: "openai/gpt-oss-120b",
       messages: [{ role: "user", content: prompt }],
       temperature: 0.1,
       max_tokens: 2048,
